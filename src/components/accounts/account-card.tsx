@@ -82,7 +82,7 @@ export function AccountCard({ account, onEdit, onTransfer }: AccountCardProps) {
                   </Badge>
                 )}
               </View>
-              <Text variant="muted" className="text-xs mt-0.5">
+              <Text variant="muted" className="text-xs mt-0.5" numberOfLines={1}>
                 {typeLabel}
                 {account.account_number ? ` • ${account.account_number}` : ''}
               </Text>

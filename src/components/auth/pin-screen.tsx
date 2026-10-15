@@ -116,6 +116,16 @@ export function PinScreen({
           })}
         </View>
 
+        {/* Loading indicator when verifying PIN */}
+        {isBusy && (
+          <View className="flex-row items-center justify-center gap-2 mt-4">
+            <ActivityIndicator size="small" />
+            <Text variant="small" className="text-muted-foreground font-medium">
+              Verifying PIN...
+            </Text>
+          </View>
+        )}
+
         {/* Error message */}
         {error && (
           <Text className="text-destructive text-sm text-center mt-4 font-medium px-4">

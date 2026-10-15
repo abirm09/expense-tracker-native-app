@@ -10,6 +10,7 @@ interface AuthState {
   isLocked: boolean;
   hasPin: boolean;
   isLoading: boolean;
+  isPinChecking: boolean;
 }
 
 const initialState: AuthState = {
@@ -20,6 +21,7 @@ const initialState: AuthState = {
   isLocked: false,
   hasPin: false,
   isLoading: true,
+  isPinChecking: false,
 };
 
 export const authSlice = createSlice({
@@ -34,6 +36,7 @@ export const authSlice = createSlice({
         profile: Profile | null;
         hasPin: boolean;
         isLocked: boolean;
+        isPinChecking?: boolean;
       }>
     ) => {
       state.userId = action.payload.userId;
@@ -42,6 +45,7 @@ export const authSlice = createSlice({
       state.isAuthenticated = Boolean(action.payload.userId);
       state.hasPin = action.payload.hasPin;
       state.isLocked = action.payload.isLocked;
+      state.isPinChecking = action.payload.isPinChecking ?? false;
       state.isLoading = false;
     },
     setProfileState: (state, action: PayloadAction<Profile | null>) => {
@@ -66,6 +70,7 @@ export const authSlice = createSlice({
       state.isAuthenticated = false;
       state.isLocked = false;
       state.hasPin = false;
+      state.isPinChecking = false;
       state.isLoading = false;
     },
   },

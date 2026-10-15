@@ -16,6 +16,8 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
+  isPinChecking: boolean;
+  isAuthenticating: boolean;
   isLocked: boolean;
   hasPin: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -36,11 +38,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = React.useState<Session | null>(null);
   const [profile, setProfile] = React.useState<Profile | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isPinChecking, setIsPinChecking] = React.useState(false);
+  const [isAuthenticating, setIsAuthenticating] = React.useState(false);
   const [isLocked, setIsLocked] = React.useState(false);
   const [hasPin, setHasPin] = React.useState(false);
 
-  // Load profile from Supabase
-  const loadProfile = React.useCallback(async (userId: string) => {
+  // Load profile from Supabase and verify PIN security
+  const loadProfile = React.useCallback(async (userId: string, shouldLockIfPin = true) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -62,7 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const pinActive = Boolean(serverHasPin || localPin);
             setHasPin(pinActive);
             if (pinActive) {
-              setIsLocked(true);
+              if (shouldLockIfPin) {
+                setIsLocked(true);
+              }
+            } else {
+              setIsLocked(false);
             }
             return;
           }
@@ -93,7 +101,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         setHasPin(pinActive);
         if (pinActive) {
-          setIsLocked(true);
+          if (shouldLockIfPin) {
+            setIsLocked(true);
+          }
+        } else {
+          setIsLocked(false);
         }
         return;
       }
@@ -106,7 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const pinActive = Boolean(serverHasPin || localPin);
         setHasPin(pinActive);
         if (pinActive) {
-          setIsLocked(true);
+          if (shouldLockIfPin) {
+            setIsLocked(true);
+          }
+        } else {
+          setIsLocked(false);
         }
         return;
       }
@@ -120,7 +136,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!rpcError && rpcData && typeof rpcData === 'object' && 'id' in rpcData) {
           const profileData = rpcData as unknown as Profile;
           setProfile(profileData);
-          setHasPin(Boolean(profileData.has_pin && profileData.pin_enabled));
+          const serverHasPin = profileData.has_pin && profileData.pin_enabled;
+          const localPin = await SecureStorage.getItem(PIN_STORAGE_KEY);
+          const pinActive = Boolean(serverHasPin || localPin);
+          setHasPin(pinActive);
+          if (pinActive) {
+            if (shouldLockIfPin) {
+              setIsLocked(true);
+            }
+          } else {
+            setIsLocked(false);
+          }
           return;
         }
       } catch (rpcEx) {
@@ -151,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profileData = inserted as unknown as Profile;
         setProfile(profileData);
         setHasPin(false);
+        setIsLocked(false);
       } else {
         console.warn('Could not persist profile in database:', insertError?.message);
         // Step C: In-memory fallback profile so the app works seamlessly
@@ -166,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updated_at: new Date().toISOString(),
         });
         setHasPin(false);
+        setIsLocked(false);
       }
     } catch (e) {
       console.warn('Profile loading error:', e);
@@ -174,29 +202,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      }
-      setIsLoading(false);
-    });
+    let isMounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
+    async function initSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          setIsPinChecking(true);
+          await loadProfile(session.user.id, true);
+        } else {
+          setProfile(null);
+          setHasPin(false);
+          setIsLocked(false);
+        }
+      } catch (err) {
+        console.warn('Init auth session error:', err);
+      } finally {
+        if (isMounted) {
+          setIsPinChecking(false);
+          setIsLoading(false);
+        }
+      }
+    }
+
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!isMounted) return;
+
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
         setProfile(null);
         setHasPin(false);
         setIsLocked(false);
+        setIsPinChecking(false);
+        setIsLoading(false);
+        return;
       }
-      setIsLoading(false);
+
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        return;
+      }
+
+      if (event === 'SIGNED_IN') {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (newSession?.user) {
+          setIsPinChecking(true);
+          await loadProfile(newSession.user.id, true);
+          if (isMounted) {
+            setIsPinChecking(false);
+          }
+        }
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, [loadProfile]);
@@ -210,14 +283,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         hasPin,
         isLocked,
+        isPinChecking,
       })
     );
-  }, [user, profile, hasPin, isLocked]);
+  }, [user, profile, hasPin, isLocked, isPinChecking]);
 
   // Listen to AppState to auto-lock when moving to background
   React.useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState.match(/inactive|background/)) {
+      if (nextAppState === 'background') {
         if (hasPin) {
           setIsLocked(true);
         }
@@ -230,45 +304,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 1. First Password: Login with Email & Password
   const signInWithEmail = async (email: string, password: string) => {
-    setIsLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setIsLoading(false);
-    if (!error && data.user) {
-      await loadProfile(data.user.id);
+    try {
+      setIsAuthenticating(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setIsAuthenticating(false);
+        return { error };
+      }
+
+      if (data.user) {
+        // Main account authentication passed!
+        setUser(data.user);
+        setSession(data.session);
+        setIsPinChecking(true);
+        setIsAuthenticating(false);
+        await loadProfile(data.user.id, true);
+        setIsPinChecking(false);
+      } else {
+        setIsAuthenticating(false);
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      setIsAuthenticating(false);
+      setIsPinChecking(false);
+      return { error: err instanceof Error ? err : new Error(String(err)) };
     }
-    return { error };
   };
 
   // Register with Email & Password
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    setIsLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+    try {
+      setIsAuthenticating(true);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
-    setIsLoading(false);
-    if (!error && data.user) {
-      await loadProfile(data.user.id);
+      });
+
+      if (error) {
+        setIsAuthenticating(false);
+        return { error };
+      }
+
+      if (data.user) {
+        setUser(data.user);
+        setSession(data.session);
+        setIsPinChecking(true);
+        setIsAuthenticating(false);
+        await loadProfile(data.user.id, true);
+        setIsPinChecking(false);
+      } else {
+        setIsAuthenticating(false);
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      setIsAuthenticating(false);
+      setIsPinChecking(false);
+      return { error: err instanceof Error ? err : new Error(String(err)) };
     }
-    return { error };
   };
 
   // Logout
   const signOut = async () => {
+    setIsLoading(true);
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
     setProfile(null);
     setIsLocked(false);
     setHasPin(false);
+    setIsPinChecking(false);
+    setIsLoading(false);
   };
 
   // 2. Second Password: 5-digit PIN Management
@@ -362,7 +478,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      await loadProfile(user.id);
+      await loadProfile(user.id, false);
     }
   };
 
@@ -373,6 +489,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         profile,
         isLoading,
+        isPinChecking,
+        isAuthenticating,
         isLocked,
         hasPin,
         signInWithEmail,

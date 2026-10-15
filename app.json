@@ -12,6 +12,10 @@
     },
     "android": {
       "package": "com.abirmahmud.expensetracker",
+      "versionCode": 2,
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/android-icon-foreground.png"

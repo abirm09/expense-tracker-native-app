@@ -6,7 +6,7 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryBudgetUsageSection } from '@/components/categories/category-budget-usage-section';
@@ -14,6 +14,7 @@ import { CategoryManagementModal } from '@/components/categories/category-manage
 import { HamburgerButton } from '@/components/navigation/hamburger-button';
 import { AccountingLedgerCard } from '@/components/expenses/accounting-ledger-card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -40,31 +41,31 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <HamburgerButton />
-          <View>
-            <Text variant="h3" className="font-bold">
-              Analytics & Reports
-            </Text>
-            <Text variant="muted" className="text-xs">
-              Ledger cash flow & category budget analytics
-            </Text>
-          </View>
+      {/* Top Header */}
+      <View className="px-5 pt-3 pb-2 flex-row items-center gap-3 border-b border-border/40">
+        <HamburgerButton />
+        <View className="flex-1">
+          <Text variant="h3" className="font-bold" numberOfLines={1}>
+            Analytics & Reports
+          </Text>
+          <Text variant="muted" className="text-xs" numberOfLines={1}>
+            Ledger cash flow & category budget analytics
+          </Text>
         </View>
-
-        <Pressable
-          onPress={() => setShowCategoryModal(true)}
-          className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border">
-          <Icon as={Sliders} size={13} className="text-muted-foreground" />
-          <Text className="text-xs font-semibold text-foreground">Categories</Text>
-        </Pressable>
       </View>
 
       <ScrollView
-        contentContainerClassName="p-5 pt-2 pb-16 gap-5 max-w-xl mx-auto w-full"
+        contentContainerClassName="p-5 pt-3 pb-16 gap-5 max-w-xl mx-auto w-full"
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}>
+        {/* Manage Categories Action (Scrollable) */}
+        <Button
+          variant="outline"
+          onPress={() => setShowCategoryModal(true)}
+          className="w-full flex-row items-center justify-center gap-2 h-10 rounded-xl border-border bg-card">
+          <Icon as={Sliders} size={14} className="text-muted-foreground" />
+          <Text className="text-xs font-semibold text-foreground">Manage Categories & Budget Limits</Text>
+        </Button>
         {isLoading ? (
           <View className="py-20 items-center justify-center">
             <ActivityIndicator size="small" />

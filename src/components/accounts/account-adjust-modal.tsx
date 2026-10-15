@@ -2,9 +2,12 @@ import { ArrowDownLeft, ArrowUpRight, Scale, X } from 'lucide-react-native';
 import * as React from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { useAppTheme } from '@/context/theme-context';
 import { formatBDT } from '@/lib/format-currency';
 import {
   useAdjustAccountBalanceMutation,
@@ -35,6 +39,9 @@ function AccountAdjustModalInner({
   initialAccountId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
+  const { isDark } = useAppTheme();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxModalHeight = Math.round(windowHeight * 0.88);
   const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery();
   const [adjust, { isLoading: isAdjusting }] = useAdjustAccountBalanceMutation();
 
@@ -80,32 +87,42 @@ function AccountAdjustModalInner({
   };
 
   return (
-    <View className="flex-1 bg-black/60 justify-end">
-      <Pressable className="flex-1" onPress={onClose} />
-      <View
-        className="bg-card rounded-t-3xl border-t border-border max-h-[90%] flex-col"
-        style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-border">
-          <View className="flex-row items-center gap-2">
-            <View className="h-8 w-8 rounded-full bg-primary/10 items-center justify-center">
-              <Icon as={Scale} size={16} className="text-primary" />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      className="flex-1">
+      <View className="flex-1 bg-black/60 justify-end">
+        <Pressable className="absolute inset-0" onPress={onClose} />
+        <View
+          className="bg-card rounded-t-3xl border-t border-border flex-col overflow-hidden w-full"
+          style={{
+            height: maxModalHeight,
+            maxHeight: maxModalHeight,
+            paddingBottom: Math.max(insets.bottom, 16),
+          }}>
+          {/* Header */}
+          <View className="shrink-0 flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-border">
+            <View className="flex-row items-center gap-2 flex-1 mr-2">
+              <View className="h-8 w-8 rounded-full bg-primary/10 items-center justify-center">
+                <Icon as={Scale} size={16} className="text-primary" />
+              </View>
+              <Text variant="h4" className="font-bold flex-1" numberOfLines={1}>
+                Balance Adjustment
+              </Text>
             </View>
-            <Text variant="h4" className="font-bold">
-              Balance Adjustment
-            </Text>
+            <Pressable
+              onPress={onClose}
+              className="h-8 w-8 rounded-full bg-muted items-center justify-center">
+              <Icon as={X} className="text-foreground" size={16} />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={onClose}
-            className="h-8 w-8 rounded-full bg-muted items-center justify-center">
-            <Icon as={X} className="text-foreground" size={16} />
-          </Pressable>
-        </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          className="px-6 py-4 flex-1"
-          contentContainerStyle={{ paddingBottom: 16 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            className="px-6 py-4 flex-1"
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 320 }}>
           <View className="gap-4">
             {isLoadingAccounts ? (
               <ActivityIndicator size="small" className="py-6" />
@@ -170,9 +187,18 @@ function AccountAdjustModalInner({
                   </Text>
                   <View className="flex-row rounded-xl bg-muted p-1 border border-border/50">
                     <Pressable
+                      key="adjust-dir-in"
                       onPress={() => setDirection('in')}
-                      className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 ${
-                        direction === 'in' ? 'bg-background shadow-sm' : ''
+                      style={{
+                        backgroundColor: direction === 'in' ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                        elevation: direction === 'in' ? 1 : 0,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: direction === 'in' ? 0.08 : 0,
+                        shadowRadius: 2,
+                      }}
+                      className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 border ${
+                        direction === 'in' ? (isDark ? 'border-emerald-500/30' : 'border-emerald-200/80') : 'border-transparent'
                       }`}>
                       <Icon
                         as={ArrowDownLeft}
@@ -180,17 +206,25 @@ function AccountAdjustModalInner({
                         color={direction === 'in' ? '#10b981' : '#64748b'}
                       />
                       <Text
-                        className={`font-semibold text-xs ${
-                          direction === 'in' ? 'text-foreground font-bold' : 'text-muted-foreground'
-                        }`}>
+                        style={{ color: direction === 'in' ? (isDark ? '#34d399' : '#059669') : '#64748b' }}
+                        className="text-xs font-bold">
                         Increase (+)
                       </Text>
                     </Pressable>
 
                     <Pressable
+                      key="adjust-dir-out"
                       onPress={() => setDirection('out')}
-                      className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 ${
-                        direction === 'out' ? 'bg-background shadow-sm' : ''
+                      style={{
+                        backgroundColor: direction === 'out' ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                        elevation: direction === 'out' ? 1 : 0,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: direction === 'out' ? 0.08 : 0,
+                        shadowRadius: 2,
+                      }}
+                      className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 border ${
+                        direction === 'out' ? (isDark ? 'border-rose-500/30' : 'border-rose-200/80') : 'border-transparent'
                       }`}>
                       <Icon
                         as={ArrowUpRight}
@@ -198,9 +232,8 @@ function AccountAdjustModalInner({
                         color={direction === 'out' ? '#ef4444' : '#64748b'}
                       />
                       <Text
-                        className={`font-semibold text-xs ${
-                          direction === 'out' ? 'text-foreground font-bold' : 'text-muted-foreground'
-                        }`}>
+                        style={{ color: direction === 'out' ? (isDark ? '#f87171' : '#dc2626') : '#64748b' }}
+                        className="text-xs font-bold">
                         Decrease (−)
                       </Text>
                     </Pressable>
@@ -254,7 +287,7 @@ function AccountAdjustModalInner({
         </ScrollView>
 
         {/* Pinned Action Buttons Footer */}
-        <View className="px-6 pt-3 border-t border-border gap-2">
+        <View className="shrink-0 px-6 pt-3 border-t border-border gap-2">
           {error && (
             <View className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
               <Text variant="small" className="text-destructive font-medium text-xs">
@@ -281,6 +314,7 @@ function AccountAdjustModalInner({
         </View>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -295,7 +329,6 @@ export function AccountAdjustModal({
       animationType="slide"
       transparent
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={onClose}>
       <AccountAdjustModalInner
         key={initialAccountId || 'default-adjust'}

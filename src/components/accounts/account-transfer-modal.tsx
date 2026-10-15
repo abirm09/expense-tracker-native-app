@@ -2,9 +2,12 @@ import { ArrowLeftRight, Check, X } from 'lucide-react-native';
 import * as React from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +38,8 @@ function AccountTransferModalInner({
   initialFromAccountId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxModalHeight = Math.round(windowHeight * 0.88);
   const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery();
   const [transfer, { isLoading: isTransferring }] = useTransferBetweenAccountsMutation();
 
@@ -107,32 +112,42 @@ function AccountTransferModalInner({
   };
 
   return (
-    <View className="flex-1 bg-black/60 justify-end">
-      <Pressable className="flex-1" onPress={onClose} />
-      <View
-        className="bg-card rounded-t-3xl border-t border-border max-h-[90%] flex-col"
-        style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-border">
-          <View className="flex-row items-center gap-2">
-            <View className="h-8 w-8 rounded-full bg-primary/10 items-center justify-center">
-              <Icon as={ArrowLeftRight} size={16} className="text-primary" />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      className="flex-1">
+      <View className="flex-1 bg-black/60 justify-end">
+        <Pressable className="absolute inset-0" onPress={onClose} />
+        <View
+          className="bg-card rounded-t-3xl border-t border-border flex-col overflow-hidden w-full"
+          style={{
+            height: maxModalHeight,
+            maxHeight: maxModalHeight,
+            paddingBottom: Math.max(insets.bottom, 16),
+          }}>
+          {/* Header */}
+          <View className="shrink-0 flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-border">
+            <View className="flex-row items-center gap-2 flex-1 mr-2">
+              <View className="h-8 w-8 rounded-full bg-primary/10 items-center justify-center">
+                <Icon as={ArrowLeftRight} size={16} className="text-primary" />
+              </View>
+              <Text variant="h4" className="font-bold flex-1" numberOfLines={1}>
+                Account Transfer
+              </Text>
             </View>
-            <Text variant="h4" className="font-bold">
-              Account Transfer
-            </Text>
+            <Pressable
+              onPress={onClose}
+              className="h-8 w-8 rounded-full bg-muted items-center justify-center">
+              <Icon as={X} className="text-foreground" size={16} />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={onClose}
-            className="h-8 w-8 rounded-full bg-muted items-center justify-center">
-            <Icon as={X} className="text-foreground" size={16} />
-          </Pressable>
-        </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          className="px-6 py-4 flex-1"
-          contentContainerStyle={{ paddingBottom: 16 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            className="px-6 py-4 flex-1"
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 320 }}>
           <View className="gap-4">
             {isLoadingAccounts ? (
               <ActivityIndicator size="small" className="py-6" />
@@ -296,7 +311,7 @@ function AccountTransferModalInner({
         </ScrollView>
 
         {/* Pinned Action Buttons Footer */}
-        <View className="px-6 pt-3 border-t border-border gap-2">
+        <View className="shrink-0 px-6 pt-3 border-t border-border gap-2">
           {error && (
             <View className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
               <Text variant="small" className="text-destructive font-medium text-xs">
@@ -329,6 +344,7 @@ function AccountTransferModalInner({
         </View>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -343,7 +359,6 @@ export function AccountTransferModal({
       animationType="slide"
       transparent
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={onClose}>
       <AccountTransferModalInner
         key={initialFromAccountId || 'default-transfer'}

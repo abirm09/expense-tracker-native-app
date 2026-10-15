@@ -1,6 +1,15 @@
 import { Check, Plus, X } from 'lucide-react-native';
 import * as React from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
@@ -17,6 +26,8 @@ interface AddExpenseModalProps {
 
 export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxModalHeight = Math.round(windowHeight * 0.88);
   const [title, setTitle] = React.useState('');
   const [amount, setAmount] = React.useState('');
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string | null>(null);
@@ -78,29 +89,38 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
       animationType="slide"
       transparent
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={handleClose}>
-      <View className="flex-1 bg-black/60 justify-end">
-        <Pressable className="flex-1" onPress={handleClose} />
-        <View
-          className="bg-card rounded-t-3xl border-t border-border max-h-[90%] flex-col"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-6 pt-5 pb-4 border-b border-border">
-            <Text variant="h4" className="font-bold">
-              Add New Expense
-            </Text>
-            <Pressable
-              onPress={handleClose}
-              className="h-8 w-8 rounded-full bg-muted items-center justify-center">
-              <Icon as={X} className="text-foreground" size={16} />
-            </Pressable>
-          </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1">
+        <View className="flex-1 bg-black/60 justify-end">
+          <Pressable className="absolute inset-0" onPress={handleClose} />
+          <View
+            className="bg-card rounded-t-3xl border-t border-border flex-col overflow-hidden w-full"
+            style={{
+              height: maxModalHeight,
+              maxHeight: maxModalHeight,
+              paddingBottom: Math.max(insets.bottom, 16),
+            }}>
+            {/* Header */}
+            <View className="shrink-0 flex-row items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+              <Text variant="h4" className="font-bold flex-1 mr-2" numberOfLines={1}>
+                Add New Expense
+              </Text>
+              <Pressable
+                onPress={handleClose}
+                className="h-8 w-8 rounded-full bg-muted items-center justify-center">
+                <Icon as={X} className="text-foreground" size={16} />
+              </Pressable>
+            </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            className="px-6 py-4 flex-1"
-            contentContainerStyle={{ paddingBottom: 16 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              className="px-6 py-4 flex-1"
+              style={{ flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: 320 }}>
             <View className="gap-4">
               {/* Title Input */}
               <View className="gap-1.5">
@@ -191,7 +211,7 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
           </ScrollView>
 
           {/* Pinned Action Buttons Footer */}
-          <View className="px-6 pt-3 border-t border-border gap-2">
+          <View className="shrink-0 px-6 pt-3 border-t border-border gap-2">
             {error && (
               <Text className="text-destructive text-sm font-medium">
                 {error}
@@ -219,6 +239,7 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

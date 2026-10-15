@@ -59,14 +59,14 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
+      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between border-b border-border/40">
+        <View className="flex-row items-center gap-3 flex-1 mr-2">
           <HamburgerButton />
-          <View>
-            <Text variant="h3" className="font-bold">
+          <View className="flex-1">
+            <Text variant="h3" className="font-bold" numberOfLines={1}>
               Profile & Settings
             </Text>
-            <Text variant="muted" className="text-xs">
+            <Text variant="muted" className="text-xs" numberOfLines={1}>
               Manage your account, security, and preferences
             </Text>
           </View>
@@ -283,16 +283,18 @@ export default function ProfileScreen() {
                 variant={themePreference === 'light' ? 'default' : 'ghost'}
                 size="sm"
                 onPress={() => setTheme('light')}
+                style={themePreference === 'light' ? { backgroundColor: '#059669' } : undefined}
                 className="flex-1 flex-row items-center justify-center gap-1.5 h-9 rounded-xl">
                 <Icon
                   as={Sun}
                   size={14}
-                  className={themePreference === 'light' ? 'text-primary-foreground' : 'text-muted-foreground'}
+                  color={themePreference === 'light' ? '#ffffff' : undefined}
+                  className={themePreference === 'light' ? undefined : 'text-muted-foreground'}
                 />
                 <Text
                   className={cn(
                     'text-xs font-semibold',
-                    themePreference === 'light' ? 'text-primary-foreground' : 'text-muted-foreground'
+                    themePreference === 'light' ? 'text-white' : 'text-muted-foreground'
                   )}>
                   Light
                 </Text>
@@ -302,16 +304,18 @@ export default function ProfileScreen() {
                 variant={themePreference === 'dark' ? 'default' : 'ghost'}
                 size="sm"
                 onPress={() => setTheme('dark')}
+                style={themePreference === 'dark' ? { backgroundColor: '#059669' } : undefined}
                 className="flex-1 flex-row items-center justify-center gap-1.5 h-9 rounded-xl">
                 <Icon
                   as={Moon}
                   size={14}
-                  className={themePreference === 'dark' ? 'text-primary-foreground' : 'text-muted-foreground'}
+                  color={themePreference === 'dark' ? '#ffffff' : undefined}
+                  className={themePreference === 'dark' ? undefined : 'text-muted-foreground'}
                 />
                 <Text
                   className={cn(
                     'text-xs font-semibold',
-                    themePreference === 'dark' ? 'text-primary-foreground' : 'text-muted-foreground'
+                    themePreference === 'dark' ? 'text-white' : 'text-muted-foreground'
                   )}>
                   Dark
                 </Text>
@@ -321,16 +325,18 @@ export default function ProfileScreen() {
                 variant={themePreference === 'system' ? 'default' : 'ghost'}
                 size="sm"
                 onPress={() => setTheme('system')}
+                style={themePreference === 'system' ? { backgroundColor: '#059669' } : undefined}
                 className="flex-1 flex-row items-center justify-center gap-1.5 h-9 rounded-xl">
                 <Icon
                   as={Sliders}
                   size={14}
-                  className={themePreference === 'system' ? 'text-primary-foreground' : 'text-muted-foreground'}
+                  color={themePreference === 'system' ? '#ffffff' : undefined}
+                  className={themePreference === 'system' ? undefined : 'text-muted-foreground'}
                 />
                 <Text
                   className={cn(
                     'text-xs font-semibold',
-                    themePreference === 'system' ? 'text-primary-foreground' : 'text-muted-foreground'
+                    themePreference === 'system' ? 'text-white' : 'text-muted-foreground'
                   )}>
                   System
                 </Text>
@@ -362,7 +368,6 @@ export default function ProfileScreen() {
           animationType="slide"
           presentationStyle="pageSheet"
           statusBarTranslucent
-          navigationBarTranslucent
           onRequestClose={() => setShowDisableModal(false)}>
           <View className="flex-1 bg-background">
             <PinScreen

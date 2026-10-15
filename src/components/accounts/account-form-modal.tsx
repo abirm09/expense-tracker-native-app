@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   Switch,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +30,7 @@ interface AccountFormModalProps {
   onClose: () => void;
   accountToEdit?: Account | null;
   defaultType?: AccountType;
+  isEmbedded?: boolean;
 }
 
 function AccountFormModalInner({
@@ -41,7 +43,10 @@ function AccountFormModalInner({
   defaultType?: AccountType;
 }) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxModalHeight = Math.round(windowHeight * 0.88);
   const isEditing = Boolean(accountToEdit);
+  const scrollViewRef = React.useRef<ScrollView>(null);
 
   const [name, setName] = React.useState(accountToEdit?.name || '');
   const [type, setType] = React.useState<AccountType>(
@@ -114,26 +119,34 @@ function AccountFormModalInner({
 
   return (
     <View className="flex-1 bg-black/60 justify-end">
-      <Pressable className="flex-1" onPress={onClose} />
+      <Pressable className="absolute inset-0" onPress={onClose} />
       <View
-        className="bg-card rounded-t-3xl border-t border-border max-h-[90%] flex-col"
-        style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-border">
-          <Text variant="h4" className="font-bold">
-            {isEditing ? 'Edit Account' : 'New Financial Account'}
-          </Text>
-          <Pressable
-            onPress={onClose}
-            className="h-8 w-8 rounded-full bg-muted items-center justify-center">
-            <Icon as={X} className="text-foreground" size={16} />
-          </Pressable>
-        </View>
+        className="bg-card rounded-t-3xl border-t border-border flex-col overflow-hidden w-full"
+        style={{
+          height: maxModalHeight,
+          maxHeight: maxModalHeight,
+          paddingBottom: Math.max(insets.bottom, 16),
+        }}>
+          {/* Header */}
+          <View className="shrink-0 flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-border">
+            <Text variant="h4" className="font-bold flex-1 mr-2" numberOfLines={1}>
+              {isEditing ? 'Edit Account' : 'New Financial Account'}
+            </Text>
+            <Pressable
+              onPress={onClose}
+              className="h-8 w-8 rounded-full bg-muted items-center justify-center">
+              <Icon as={X} className="text-foreground" size={16} />
+            </Pressable>
+          </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          className="px-6 py-4 flex-1"
-          contentContainerStyle={{ paddingBottom: 16 }}>
+          <ScrollView
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            className="px-6 py-4 flex-1"
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 350 }}>
           <View className="gap-4">
             {/* Account Type Selector */}
             <View className="gap-1.5">
@@ -280,6 +293,14 @@ function AccountFormModalInner({
                 multiline
                 numberOfLines={2}
                 className="h-16 py-2"
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 350);
+                }}
               />
             </View>
 
@@ -287,7 +308,7 @@ function AccountFormModalInner({
           </ScrollView>
 
           {/* Pinned Action Buttons Footer */}
-          <View className="px-6 pt-3 border-t border-border gap-2">
+          <View className="shrink-0 px-6 pt-3 border-t border-border gap-2">
             {error && (
               <View className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
                 <Text variant="small" className="text-destructive font-medium text-xs">
@@ -322,14 +343,29 @@ export function AccountFormModal({
   onClose,
   accountToEdit,
   defaultType,
+  isEmbedded = false,
 }: AccountFormModalProps) {
+  if (!visible) return null;
+
+  if (isEmbedded) {
+    return (
+      <View className="absolute inset-0 bg-black/60 justify-end z-50">
+        <AccountFormModalInner
+          key={accountToEdit ? accountToEdit.id : `new-${defaultType || 'cash'}`}
+          onClose={onClose}
+          accountToEdit={accountToEdit}
+          defaultType={defaultType}
+        />
+      </View>
+    );
+  }
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
       transparent
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={onClose}>
       <AccountFormModalInner
         key={accountToEdit ? accountToEdit.id : `new-${defaultType || 'cash'}`}

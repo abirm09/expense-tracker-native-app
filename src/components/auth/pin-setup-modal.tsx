@@ -91,7 +91,6 @@ export function PinSetupModal({ visible, onClose, onSuccess }: PinSetupModalProp
       animationType="slide"
       presentationStyle="pageSheet"
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={handleClose}>
       <View className="flex-1 bg-background">
         {step === 'create' ? (

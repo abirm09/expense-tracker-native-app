@@ -96,6 +96,16 @@ export function ThemePreferenceProvider({ children }: { children: React.ReactNod
 
   const activeScheme: 'light' | 'dark' = (colorScheme === 'dark' ? 'dark' : 'light');
 
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (activeScheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [activeScheme]);
+
   const value = React.useMemo<ThemeContextValue>(
     () => ({
       colorScheme: activeScheme,

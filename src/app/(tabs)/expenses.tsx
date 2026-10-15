@@ -82,41 +82,45 @@ export default function ExpensesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <HamburgerButton />
-          <View>
-            <Text variant="h3" className="font-bold">
-              Expenses
-            </Text>
-            <Text variant="muted" className="text-xs">
-              Debit ledger & spending tracker
-            </Text>
-          </View>
-        </View>
-
-        <View className="flex-row items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onPress={() => setShowCategoryModal(true)}
-            className="flex-row items-center gap-1 px-2.5 h-8">
-            <Icon as={Sliders} size={13} className="text-muted-foreground" />
-            <Text className="text-xs font-medium">Categories</Text>
-          </Button>
-
-          <Button
-            size="sm"
-            onPress={() => setShowAddModal(true)}
-            className="flex-row items-center gap-1.5 bg-rose-600 active:bg-rose-700 h-8">
-            <Icon as={Plus} className="text-white" size={15} />
-            <Text className="text-xs font-semibold text-white">Add Debit</Text>
-          </Button>
+      {/* Top Header */}
+      <View className="px-5 pt-3 pb-2 flex-row items-center gap-3 border-b border-border/40">
+        <HamburgerButton />
+        <View className="flex-1">
+          <Text variant="h3" className="font-bold" numberOfLines={1}>
+            Expenses
+          </Text>
+          <Text variant="muted" className="text-xs" numberOfLines={1}>
+            Debit ledger & spending tracker
+          </Text>
         </View>
       </View>
 
-      {/* Spent Summary Banner */}
-      <View className="px-5 py-2">
+      {/* Scrollable Content */}
+      <ScrollView
+        contentContainerClassName="p-5 pt-3 pb-16 gap-4"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+        }>
+        {/* Action Row */}
+        <View className="flex-row items-center gap-2.5">
+          <Button
+            variant="outline"
+            onPress={() => setShowCategoryModal(true)}
+            className="flex-1 flex-row items-center justify-center gap-2 h-10 rounded-xl border-border bg-card">
+            <Icon as={Sliders} size={14} className="text-muted-foreground" />
+            <Text className="text-xs font-semibold text-foreground">Manage Categories</Text>
+          </Button>
+          <Button
+            onPress={() => setShowAddModal(true)}
+            style={{ backgroundColor: '#e11d48' }}
+            className="flex-1 flex-row items-center justify-center gap-2 h-10 rounded-xl active:opacity-90">
+            <Icon as={Plus} color="#ffffff" size={15} />
+            <Text className="text-xs font-semibold text-white">Add Debit</Text>
+          </Button>
+        </View>
+
+        {/* Spent Summary Banner */}
         <View className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-between">
           <View>
             <Text className="text-xs font-medium text-rose-600 dark:text-rose-400">
@@ -130,10 +134,8 @@ export default function ExpensesScreen() {
             <Text className="text-xs font-semibold">{filteredExpenses.length} debits</Text>
           </Badge>
         </View>
-      </View>
 
-      {/* Search Input */}
-      <View className="px-5 pt-2 pb-1">
+        {/* Search Input */}
         <View className="relative flex-row items-center">
           <View className="absolute left-3 z-10">
             <Icon as={Search} size={16} className="text-muted-foreground" />
@@ -152,14 +154,13 @@ export default function ExpensesScreen() {
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* Category Filter Chips with Monthly Limits */}
-      <View className="py-2">
+        {/* Category Filter Chips with Monthly Limits */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-5 gap-2">
+          contentContainerClassName="gap-2"
+          className="-mx-5 px-5 py-0.5">
           {/* Manage categories chip */}
           <Pressable
             onPress={() => setShowCategoryModal(true)}
@@ -169,15 +170,16 @@ export default function ExpensesScreen() {
           </Pressable>
 
           <Pressable
+            key="cat-chip-all"
             onPress={() => setSelectedCategory(null)}
             className={`px-3.5 py-1.5 rounded-full border ${
               selectedCategory === null
-                ? 'bg-primary border-primary'
+                ? 'bg-rose-500 border-rose-500'
                 : 'bg-muted/60 border-border/60'
             }`}>
             <Text
               className={`text-xs font-medium ${
-                selectedCategory === null ? 'text-primary-foreground' : 'text-foreground'
+                selectedCategory === null ? 'text-white font-semibold' : 'text-foreground'
               }`}>
               All
             </Text>
@@ -209,15 +211,6 @@ export default function ExpensesScreen() {
             );
           })}
         </ScrollView>
-      </View>
-
-      {/* Expense List */}
-      <ScrollView
-        contentContainerClassName="p-5 pt-1 pb-16 gap-3"
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
-        }>
         {isLoading ? (
           <View className="py-12 items-center justify-center">
             <ActivityIndicator size="small" />

@@ -3,11 +3,10 @@ import * as React from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { useAppTheme } from '@/context/theme-context';
 import {
   useAddCategoryMutation,
   useUpdateCategoryMutation,
@@ -50,6 +50,9 @@ export function CategoryFormCard({
   isEmbedded = false,
 }: CategoryFormCardProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxModalHeight = Math.round(windowHeight * 0.88);
+  const { isDark } = useAppTheme();
   const isEditing = Boolean(categoryToEdit);
   const [apiError, setApiError] = React.useState<string | null>(null);
 
@@ -132,19 +135,20 @@ export function CategoryFormCard({
   });
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className={isEmbedded ? 'w-full' : 'w-full'}>
-      <View
-        className="bg-card rounded-t-3xl border-t border-border max-h-[92%] w-full flex-col"
-        style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+    <View
+      className="bg-card rounded-t-3xl border-t border-border flex-col overflow-hidden w-full"
+      style={{
+        height: maxModalHeight,
+        maxHeight: maxModalHeight,
+        paddingBottom: Math.max(insets.bottom, 16),
+      }}>
         {/* Header */}
-        <View className="flex-row items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+        <View className="shrink-0 flex-row items-center justify-between px-6 pt-5 pb-4 border-b border-border">
           <View className="flex-1 pr-2">
-            <Text variant="h4" className="font-bold">
+            <Text variant="h4" className="font-bold" numberOfLines={1}>
               {isEditing ? 'Edit Category' : 'Create Category'}
             </Text>
-            <Text variant="muted" className="text-xs">
+            <Text variant="muted" className="text-xs" numberOfLines={1}>
               {currentType === 'expense'
                 ? 'Expense Category (with dynamic monthly limit)'
                 : 'Income Category (credit cash flow)'}
@@ -161,8 +165,10 @@ export function CategoryFormCard({
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           className="px-6 flex-1"
-          contentContainerClassName="py-4 gap-4">
+          style={{ flexShrink: 1 }}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 350, gap: 16 }}>
           {apiError && (
             <View className="bg-destructive/10 border border-destructive/20 rounded-xl p-3">
               <Text className="text-xs text-destructive font-medium">{apiError}</Text>
@@ -176,9 +182,18 @@ export function CategoryFormCard({
             </Text>
             <View className="flex-row bg-muted p-1 rounded-xl">
               <Pressable
+                key="cat-type-expense"
                 onPress={() => setValue('type', 'expense', { shouldDirty: true })}
-                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 ${
-                  currentType === 'expense' ? 'bg-background shadow-sm' : ''
+                style={{
+                  backgroundColor: currentType === 'expense' ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                  elevation: currentType === 'expense' ? 1 : 0,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: currentType === 'expense' ? 0.08 : 0,
+                  shadowRadius: 2,
+                }}
+                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 border ${
+                  currentType === 'expense' ? (isDark ? 'border-rose-500/30' : 'border-rose-200/80') : 'border-transparent'
                 }`}>
                 <Icon
                   as={ArrowUpRight}
@@ -186,17 +201,25 @@ export function CategoryFormCard({
                   color={currentType === 'expense' ? '#ef4444' : '#64748b'}
                 />
                 <Text
-                  className={`font-semibold text-xs ${
-                    currentType === 'expense' ? 'text-foreground' : 'text-muted-foreground'
-                  }`}>
+                  style={{ color: currentType === 'expense' ? (isDark ? '#f87171' : '#dc2626') : '#64748b' }}
+                  className="text-xs font-bold">
                   Expense (Debit)
                 </Text>
               </Pressable>
 
               <Pressable
+                key="cat-type-income"
                 onPress={() => setValue('type', 'income', { shouldDirty: true })}
-                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 ${
-                  currentType === 'income' ? 'bg-background shadow-sm' : ''
+                style={{
+                  backgroundColor: currentType === 'income' ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                  elevation: currentType === 'income' ? 1 : 0,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: currentType === 'income' ? 0.08 : 0,
+                  shadowRadius: 2,
+                }}
+                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 border ${
+                  currentType === 'income' ? (isDark ? 'border-emerald-500/30' : 'border-emerald-200/80') : 'border-transparent'
                 }`}>
                 <Icon
                   as={ArrowDownLeft}
@@ -204,9 +227,8 @@ export function CategoryFormCard({
                   color={currentType === 'income' ? '#10b981' : '#64748b'}
                 />
                 <Text
-                  className={`font-semibold text-xs ${
-                    currentType === 'income' ? 'text-foreground' : 'text-muted-foreground'
-                  }`}>
+                  style={{ color: currentType === 'income' ? (isDark ? '#34d399' : '#059669') : '#64748b' }}
+                  className="text-xs font-bold">
                   Income (Credit)
                 </Text>
               </Pressable>
@@ -364,7 +386,7 @@ export function CategoryFormCard({
         </ScrollView>
 
         {/* Action Buttons */}
-        <View className="flex-row gap-3 px-6 pt-3 border-t border-border">
+        <View className="shrink-0 flex-row gap-3 px-6 pt-3 border-t border-border">
           <Button
             variant="outline"
             className="flex-1"
@@ -386,7 +408,6 @@ export function CategoryFormCard({
           </Button>
         </View>
       </View>
-    </KeyboardAvoidingView>
   );
 }
 
@@ -414,11 +435,10 @@ export function CategoryFormModal({
       animationType="slide"
       transparent
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={onClose}>
       {visible ? (
         <View className="flex-1 bg-black/60 justify-end">
-          <Pressable className="flex-1" onPress={onClose} />
+          <Pressable className="absolute inset-0" onPress={onClose} />
           <CategoryFormCard
             key={categoryToEdit ? categoryToEdit.id : `new-${defaultType}`}
             onClose={onClose}

@@ -111,39 +111,45 @@ export default function AccountsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <HamburgerButton />
-          <View>
-            <Text variant="h3" className="font-bold">
-              Accounts & Ledger
-            </Text>
-            <Text variant="muted" className="text-xs">
-              Bank, mobile wallet, and cash management
-            </Text>
-          </View>
-        </View>
-
-        <View className="flex-row items-center gap-1.5">
-          <Button
-            size="sm"
-            onPress={() => {
-              setEditingAccount(null);
-              setShowAccountForm(true);
-            }}
-            className="flex-row items-center gap-1 bg-primary px-3">
-            <Icon as={Plus} size={14} className="text-primary-foreground" />
-            <Text className="text-xs font-semibold text-primary-foreground">Account</Text>
-          </Button>
+      <View className="px-5 pt-3 pb-2 flex-row items-center gap-3 border-b border-border/40">
+        <HamburgerButton />
+        <View className="flex-1">
+          <Text variant="h3" className="font-bold" numberOfLines={1}>
+            Accounts & Ledger
+          </Text>
+          <Text variant="muted" className="text-xs" numberOfLines={1}>
+            Bank, mobile wallet, and cash management
+          </Text>
         </View>
       </View>
 
       <ScrollView
-        contentContainerClassName="p-5 pt-1 pb-20 gap-5 max-w-2xl mx-auto w-full"
+        contentContainerClassName="p-5 pt-3 pb-20 gap-5 max-w-2xl mx-auto w-full"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }>
+        {/* Action Row (Scrollable) */}
+        <View className="flex-row items-center gap-2.5">
+          <Button
+            onPress={() => {
+              setEditingAccount(null);
+              setShowAccountForm(true);
+            }}
+            className="flex-1 flex-row items-center justify-center gap-2 bg-primary h-10 rounded-xl">
+            <Icon as={Plus} size={15} className="text-primary-foreground" />
+            <Text className="text-xs font-semibold text-primary-foreground">Add New Account</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onPress={() => setShowTransferModal(true)}
+            disabled={accounts.length < 2}
+            className="flex-row items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl border-border bg-card">
+            <Icon as={ArrowLeftRight} size={14} className="text-foreground" />
+            <Text className="text-xs font-medium text-foreground">Transfer</Text>
+          </Button>
+        </View>
+
         {/* Total Liquidity Net Worth Card */}
         <Card className="bg-primary text-primary-foreground border-none shadow-md overflow-hidden">
           <CardContent className="p-5">
@@ -277,15 +283,16 @@ export default function AccountsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-0.5">
               <View className="flex-row gap-1.5">
                 <Pressable
+                  key="account-filter-all"
                   onPress={() => setSelectedAccountFilter('all')}
                   className={`px-3 py-1.5 rounded-full border ${
                     selectedAccountFilter === 'all'
-                      ? 'bg-primary border-primary'
+                      ? 'bg-emerald-600 border-emerald-600'
                       : 'bg-muted/40 border-border/70'
                   }`}>
                   <Text
                     className={`text-xs font-semibold ${
-                      selectedAccountFilter === 'all' ? 'text-primary-foreground' : 'text-foreground'
+                      selectedAccountFilter === 'all' ? 'text-white' : 'text-foreground'
                     }`}>
                     All Accounts
                   </Text>
@@ -300,18 +307,18 @@ export default function AccountsScreen() {
                       onPress={() => setSelectedAccountFilter(acc.id)}
                       className={`px-3 py-1.5 rounded-full border flex-row items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-primary border-primary'
+                          ? 'bg-emerald-600 border-emerald-600'
                           : 'bg-muted/40 border-border/70'
                       }`}>
                       <Icon
                         as={AccIcon}
                         size={12}
-                        className={isSelected ? 'text-primary-foreground' : undefined}
+                        className={isSelected ? 'text-white' : undefined}
                         color={isSelected ? undefined : acc.color || '#10b981'}
                       />
                       <Text
                         className={`text-xs font-semibold ${
-                          isSelected ? 'text-primary-foreground' : 'text-foreground'
+                          isSelected ? 'text-white' : 'text-foreground'
                         }`}>
                         {acc.name}
                       </Text>
@@ -334,12 +341,12 @@ export default function AccountsScreen() {
                       onPress={() => setSelectedTypeFilter(f.id)}
                       className={`px-2.5 py-1 rounded-lg border ${
                         isSelected
-                          ? 'bg-foreground border-foreground'
+                          ? 'bg-emerald-600 border-emerald-600'
                           : 'bg-muted/20 border-border/50'
                       }`}>
                       <Text
                         className={`text-[11px] font-medium ${
-                          isSelected ? 'text-background font-bold' : 'text-muted-foreground'
+                          isSelected ? 'text-white font-bold' : 'text-muted-foreground'
                         }`}>
                         {f.label}
                       </Text>

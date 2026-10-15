@@ -78,7 +78,7 @@ const SAMPLE_TRANSACTIONS = [
 export default function OverviewScreen() {
   const { user, profile, hasPin, lockApp } = useAuth();
   const [showPinModal, setShowPinModal] = React.useState(false);
-  const [modalType, setModalType] = React.useState<'expense' | 'income' | null>(null);
+  const [modalType, setModalType] = React.useState<'expense' | 'income' | 'transfer' | null>(null);
   const [showCategoryModal, setShowCategoryModal] = React.useState(false);
   const [showTransferModal, setShowTransferModal] = React.useState(false);
 
@@ -263,7 +263,7 @@ export default function OverviewScreen() {
             </Button>
 
             <Button
-              onPress={() => setShowTransferModal(true)}
+              onPress={() => setModalType('transfer')}
               className="flex-1 flex-row items-center justify-center gap-1.5 bg-purple-600 active:bg-purple-700 h-10 px-2">
               <Icon as={ArrowLeftRight} className="text-white" size={14} />
               <Text className="font-semibold text-white text-xs">Transfer</Text>

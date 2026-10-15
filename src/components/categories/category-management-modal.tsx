@@ -10,9 +10,12 @@ import * as React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { useAppTheme } from '@/context/theme-context';
 import {
   useDeleteCategoryMutation,
   useGetCategoriesQuery,
@@ -43,6 +47,9 @@ function CategoryManagementModalContent({
   initialType?: 'expense' | 'income';
 }) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxModalHeight = Math.round(windowHeight * 0.88);
+  const { isDark } = useAppTheme();
   const [activeTab, setActiveTab] = React.useState<'expense' | 'income'>(initialType);
   const [editingCategory, setEditingCategory] = React.useState<Category | null>(null);
   const [viewMode, setViewMode] = React.useState<'list' | 'form'>('list');
@@ -103,7 +110,7 @@ function CategoryManagementModalContent({
 
   return (
     <View className="flex-1 bg-black/60 justify-end">
-      <Pressable className="flex-1" onPress={onClose} />
+      <Pressable className="absolute inset-0" onPress={onClose} />
 
       {viewMode === 'form' ? (
         <CategoryFormCard
@@ -121,15 +128,19 @@ function CategoryManagementModalContent({
         />
       ) : (
         <View
-          className="bg-card rounded-t-3xl border-t border-border max-h-[88%] flex-col"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+          className="bg-card rounded-t-3xl border-t border-border flex-col overflow-hidden w-full"
+          style={{
+            height: maxModalHeight,
+            maxHeight: maxModalHeight,
+            paddingBottom: Math.max(insets.bottom, 16),
+          }}>
           {/* Header */}
-          <View className="flex-row items-center justify-between px-6 pt-5 pb-4 border-b border-border">
-            <View>
-              <Text variant="h4" className="font-bold">
+          <View className="shrink-0 flex-row items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+            <View className="flex-1 mr-2">
+              <Text variant="h4" className="font-bold" numberOfLines={1}>
                 Manage Categories
               </Text>
-              <Text variant="muted" className="text-xs">
+              <Text variant="muted" className="text-xs" numberOfLines={1}>
                 Create, customize & configure monthly limits
               </Text>
             </View>
@@ -141,13 +152,22 @@ function CategoryManagementModalContent({
             </Pressable>
           </View>
 
-          <View className="px-6">
+          <View className="shrink-0 px-6">
             {/* Type Tabs */}
             <View className="flex-row bg-muted p-1 rounded-xl my-4">
               <Pressable
+                key="manage-cat-tab-expense"
                 onPress={() => setActiveTab('expense')}
-                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 ${
-                  activeTab === 'expense' ? 'bg-background shadow-sm' : ''
+                style={{
+                  backgroundColor: activeTab === 'expense' ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                  elevation: activeTab === 'expense' ? 1 : 0,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: activeTab === 'expense' ? 0.08 : 0,
+                  shadowRadius: 2,
+                }}
+                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 border ${
+                  activeTab === 'expense' ? (isDark ? 'border-rose-500/30' : 'border-rose-200/80') : 'border-transparent'
                 }`}>
                 <Icon
                   as={ArrowUpRight}
@@ -155,17 +175,25 @@ function CategoryManagementModalContent({
                   color={activeTab === 'expense' ? '#ef4444' : '#64748b'}
                 />
                 <Text
-                  className={`font-semibold text-xs ${
-                    activeTab === 'expense' ? 'text-foreground' : 'text-muted-foreground'
-                  }`}>
+                  style={{ color: activeTab === 'expense' ? (isDark ? '#f87171' : '#dc2626') : '#64748b' }}
+                  className="text-xs font-bold">
                   Expenses (Debits)
                 </Text>
               </Pressable>
 
               <Pressable
+                key="manage-cat-tab-income"
                 onPress={() => setActiveTab('income')}
-                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 ${
-                  activeTab === 'income' ? 'bg-background shadow-sm' : ''
+                style={{
+                  backgroundColor: activeTab === 'income' ? (isDark ? '#1e293b' : '#ffffff') : 'transparent',
+                  elevation: activeTab === 'income' ? 1 : 0,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: activeTab === 'income' ? 0.08 : 0,
+                  shadowRadius: 2,
+                }}
+                className={`flex-1 flex-row items-center justify-center py-2.5 rounded-lg gap-2 border ${
+                  activeTab === 'income' ? (isDark ? 'border-emerald-500/30' : 'border-emerald-200/80') : 'border-transparent'
                 }`}>
                 <Icon
                   as={ArrowDownLeft}
@@ -173,9 +201,8 @@ function CategoryManagementModalContent({
                   color={activeTab === 'income' ? '#10b981' : '#64748b'}
                 />
                 <Text
-                  className={`font-semibold text-xs ${
-                    activeTab === 'income' ? 'text-foreground' : 'text-muted-foreground'
-                  }`}>
+                  style={{ color: activeTab === 'income' ? (isDark ? '#34d399' : '#059669') : '#64748b' }}
+                  className="text-xs font-bold">
                   Income (Credits)
                 </Text>
               </Pressable>
@@ -195,8 +222,10 @@ function CategoryManagementModalContent({
           {/* Categories List */}
           <ScrollView
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             className="px-6 flex-1"
-            contentContainerClassName="pb-6 gap-2.5">
+            style={{ flexShrink: 1 }}
+            contentContainerClassName="pb-8 gap-2.5">
             {isLoading ? (
               <View className="py-12 items-center justify-center">
                 <ActivityIndicator size="small" />
@@ -304,14 +333,17 @@ export function CategoryManagementModal({
       animationType="slide"
       transparent
       statusBarTranslucent
-      navigationBarTranslucent
       onRequestClose={onClose}>
       {visible ? (
-        <CategoryManagementModalContent
-          key={`${visible}-${initialType}`}
-          onClose={onClose}
-          initialType={initialType}
-        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1">
+          <CategoryManagementModalContent
+            key={`${visible}-${initialType}`}
+            onClose={onClose}
+            initialType={initialType}
+          />
+        </KeyboardAvoidingView>
       ) : null}
     </Modal>
   );

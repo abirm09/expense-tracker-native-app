@@ -81,41 +81,45 @@ export default function IncomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
-      <View className="px-5 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <HamburgerButton />
-          <View>
-            <Text variant="h3" className="font-bold">
-              Income
-            </Text>
-            <Text variant="muted" className="text-xs">
-              Credit ledger & earnings streams
-            </Text>
-          </View>
-        </View>
-
-        <View className="flex-row items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onPress={() => setShowCategoryModal(true)}
-            className="flex-row items-center gap-1 px-2.5 h-8">
-            <Icon as={Sliders} size={13} className="text-muted-foreground" />
-            <Text className="text-xs font-medium">Categories</Text>
-          </Button>
-
-          <Button
-            size="sm"
-            onPress={() => setShowAddModal(true)}
-            className="flex-row items-center gap-1.5 bg-emerald-600 active:bg-emerald-700 h-8">
-            <Icon as={Plus} className="text-white" size={15} />
-            <Text className="text-xs font-semibold text-white">Add Credit</Text>
-          </Button>
+      {/* Top Header */}
+      <View className="px-5 pt-3 pb-2 flex-row items-center gap-3 border-b border-border/40">
+        <HamburgerButton />
+        <View className="flex-1">
+          <Text variant="h3" className="font-bold" numberOfLines={1}>
+            Income
+          </Text>
+          <Text variant="muted" className="text-xs" numberOfLines={1}>
+            Credit ledger & earnings streams
+          </Text>
         </View>
       </View>
 
-      {/* Earned Summary Banner */}
-      <View className="px-5 py-2">
+      {/* Scrollable Content */}
+      <ScrollView
+        contentContainerClassName="p-5 pt-3 pb-16 gap-4"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+        }>
+        {/* Action Row */}
+        <View className="flex-row items-center gap-2.5">
+          <Button
+            variant="outline"
+            onPress={() => setShowCategoryModal(true)}
+            className="flex-1 flex-row items-center justify-center gap-2 h-10 rounded-xl border-border bg-card">
+            <Icon as={Sliders} size={14} className="text-muted-foreground" />
+            <Text className="text-xs font-semibold text-foreground">Manage Categories</Text>
+          </Button>
+          <Button
+            onPress={() => setShowAddModal(true)}
+            style={{ backgroundColor: '#059669' }}
+            className="flex-1 flex-row items-center justify-center gap-2 h-10 rounded-xl active:opacity-90">
+            <Icon as={Plus} color="#ffffff" size={15} />
+            <Text className="text-xs font-semibold text-white">Add Credit</Text>
+          </Button>
+        </View>
+
+        {/* Earned Summary Banner */}
         <View className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex-row items-center justify-between">
           <View>
             <Text className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -129,10 +133,8 @@ export default function IncomeScreen() {
             <Text className="text-xs font-semibold">{filteredIncomes.length} credits</Text>
           </Badge>
         </View>
-      </View>
 
-      {/* Search Bar */}
-      <View className="px-5 pt-2 pb-1">
+        {/* Search Bar */}
         <View className="relative flex-row items-center">
           <View className="absolute left-3 z-10">
             <Icon as={Search} size={16} className="text-muted-foreground" />
@@ -151,14 +153,13 @@ export default function IncomeScreen() {
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* Category Filter Chips */}
-      <View className="py-2">
+        {/* Category Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-5 gap-2">
+          contentContainerClassName="gap-2"
+          className="-mx-5 px-5 py-0.5">
           {/* Manage categories chip */}
           <Pressable
             onPress={() => setShowCategoryModal(true)}
@@ -168,6 +169,7 @@ export default function IncomeScreen() {
           </Pressable>
 
           <Pressable
+            key="cat-chip-all-sources"
             onPress={() => setSelectedCategory(null)}
             className={`px-3.5 py-1.5 rounded-full border ${
               selectedCategory === null
@@ -202,15 +204,6 @@ export default function IncomeScreen() {
             );
           })}
         </ScrollView>
-      </View>
-
-      {/* Income List */}
-      <ScrollView
-        contentContainerClassName="p-5 pt-1 pb-16 gap-3"
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
-        }>
         {isLoading ? (
           <View className="py-12 items-center justify-center">
             <ActivityIndicator size="small" />
