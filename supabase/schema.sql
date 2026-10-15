@@ -1,26 +1,24 @@
 -- ==============================================================================
--- COMPLETE UNIFIED DATABASE SCHEMA - EXPENSE TRACKER
+-- ALL-IN-ONE SUPABASE DATABASE SETUP & SCHEMA - EXPENSE TRACKER
 -- ==============================================================================
--- This single file contains the complete database setup for Supabase:
--- 1. Extensions (pgcrypto, uuid-ossp)
--- 2. Profiles Table (with 5-Digit PIN authentication & BDT currency)
--- 3. Categories Table (Dynamic categories, expense/income types & monthly limits)
--- 4. Accounts Table (Cash, Bank, Mobile Banking/bKash with BDT balances)
--- 5. Expenses / Transactions Table (Expenses, Incomes, Double-Entry Transfers)
--- 6. Budgets Table
--- 7. Automated Stored Procedures & Triggers:
---    - Profile creation trigger
---    - Default account seeding trigger
---    - Account balance automatic recalculation trigger
---    - Transaction accounting type synchronization trigger
---    - Atomic transfer between accounts RPC
---    - Account balance adjustment RPC
---    - Accounting summary (debits, credits, net balance) RPC
---    - Monthly category usage calculation RPC
---    - 5-Digit PIN security RPCs
--- 8. Row Level Security (RLS) Policies on all tables
--- 9. Default Seeds (Categories & Default User Accounts)
--- 10. Role Grants & Permissions (anon, authenticated, service_role)
+-- SINGLE MASTER SQL FILE: Run this entire file in the Supabase SQL Editor.
+-- It sets up everything from scratch or updates an existing database safely.
+--
+-- INCLUDES:
+--  1. Extensions (pgcrypto, uuid-ossp)
+--  2. Profiles Table (with 5-Digit PIN authentication & BDT currency)
+--  3. Categories Table (Dynamic categories, expense/income types & monthly limits)
+--  4. Accounts Table (Cash, Bank, Mobile Banking/bKash with BDT balances)
+--  5. Expenses & Transactions Table (Expenses, Incomes, Double-Entry Transfers)
+--  6. Budgets Table
+--  7. Row Level Security (RLS) & Policies for all tables
+--  8. Security & PIN RPC Functions
+--  9. Real-Time Account Balance Recalculation & Accounting Triggers
+-- 10. Atomic Double-Entry Transfer & Balance Adjustment RPCs
+-- 11. Accounting Summary & Category Monthly Usage RPCs
+-- 12. Transaction Reset Functions (Fresh Start anytime with a single command)
+-- 13. Default Seed Data (Expense/Income Categories & Default User Accounts)
+-- 14. Full Role Permissions & Grants (anon, authenticated, service_role)
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
@@ -45,6 +43,11 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
+-- Ensure currency column exists and defaults to BDT
+alter table public.profiles add column if not exists currency text not null default 'BDT';
+alter table public.profiles alter column currency set default 'BDT';
+
+-- Enable RLS
 alter table public.profiles enable row level security;
 
 drop policy if exists "Users can view their own profile" on public.profiles;
@@ -62,7 +65,7 @@ create policy "Users can insert their own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
 
--- Trigger to handle new user registration from auth.users
+-- Trigger to create profile automatically on auth.users signup
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -87,7 +90,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Ensure profile exists for authenticated user
+-- Ensure profile exists RPC for authenticated user
 create or replace function public.ensure_user_profile()
 returns json
 language plpgsql
@@ -235,6 +238,10 @@ create table if not exists public.categories (
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
+-- Ensure columns exist
+alter table public.categories add column if not exists type text check (type in ('expense', 'income', 'both')) default 'expense';
+alter table public.categories add column if not exists monthly_limit numeric(12, 2) default 0.00;
+
 alter table public.categories enable row level security;
 
 drop policy if exists "Users can view default categories and their own" on public.categories;
@@ -361,6 +368,21 @@ create table if not exists public.expenses (
   notes text,
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+-- Ensure all columns and constraints exist
+alter table public.expenses add column if not exists account_id uuid references public.accounts(id) on delete set null;
+alter table public.expenses add column if not exists to_account_id uuid references public.accounts(id) on delete set null;
+alter table public.expenses add column if not exists transfer_group_id uuid;
+alter table public.expenses add column if not exists entry_type text;
+alter table public.expenses add column if not exists currency text default 'BDT';
+
+alter table public.expenses drop constraint if exists expenses_type_check;
+alter table public.expenses add constraint expenses_type_check check (type in ('expense', 'income', 'transfer'));
+
+alter table public.expenses drop constraint if exists expenses_entry_type_check;
+alter table public.expenses add constraint expenses_entry_type_check check (
+  entry_type in ('debit', 'credit', 'transfer_out', 'transfer_in', 'adjustment')
 );
 
 create index if not exists idx_expenses_user_id on public.expenses(user_id);
@@ -831,7 +853,70 @@ create policy "Users can manage their own budgets"
   with check (auth.uid() = user_id);
 
 -- ------------------------------------------------------------------------------
--- 13. SEED DEFAULT CATEGORIES (Expense & Income)
+-- 13. TRANSACTION RESET FUNCTIONS (Start Fresh with 1 command anytime)
+-- ------------------------------------------------------------------------------
+
+-- Reset all transactions across database and restore account balances
+create or replace function public.reset_all_transactions()
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Temporarily disable balance trigger during truncate
+  alter table public.expenses disable trigger trg_expenses_account_balance;
+
+  -- Clear all transactions
+  truncate table public.expenses restart identity cascade;
+
+  -- Re-enable balance trigger
+  alter table public.expenses enable trigger trg_expenses_account_balance;
+
+  -- Reset all accounts back to their opening balance
+  update public.accounts
+  set 
+    current_balance = coalesce(opening_balance, 0.00),
+    updated_at = now();
+
+  return json_build_object(
+    'success', true,
+    'message', 'All transactions have been deleted and accounts restored to opening balances.'
+  );
+end;
+$$;
+
+-- Reset transactions for authenticated user only
+create or replace function public.reset_user_transactions()
+returns json
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  curr_user_id uuid := auth.uid();
+begin
+  if curr_user_id is null then
+    return json_build_object('success', false, 'error', 'Unauthorized');
+  end if;
+
+  delete from public.expenses where user_id = curr_user_id;
+
+  update public.accounts
+  set 
+    current_balance = coalesce(opening_balance, 0.00),
+    updated_at = now()
+  where user_id = curr_user_id;
+
+  return json_build_object(
+    'success', true,
+    'message', 'Your transactions have been deleted and account balances restored.'
+  );
+end;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 14. SEED DEFAULT CATEGORIES (Expense & Income)
 -- ------------------------------------------------------------------------------
 insert into public.categories (name, icon, color, is_default, type)
 values
@@ -853,7 +938,7 @@ values
 on conflict do nothing;
 
 -- ------------------------------------------------------------------------------
--- 14. SEED EXISTING USERS (Profiles & Default Accounts)
+-- 15. SEED EXISTING USERS (Profiles & Default Accounts)
 -- ------------------------------------------------------------------------------
 insert into public.profiles (id, email, full_name, currency, has_pin, pin_enabled)
 select 
@@ -876,7 +961,7 @@ begin
 end $$;
 
 -- ------------------------------------------------------------------------------
--- 15. GRANTS & ROLE PERMISSIONS (Supabase anon, authenticated, service_role)
+-- 16. GRANTS & ROLE PERMISSIONS (Supabase anon, authenticated, service_role)
 -- ------------------------------------------------------------------------------
 grant usage on schema public to anon, authenticated, service_role;
 grant usage on schema extensions to anon, authenticated, service_role;
@@ -909,3 +994,5 @@ grant execute on function public.recalculate_account_balance(uuid) to authentica
 grant execute on function public.seed_default_accounts_for_user(uuid) to authenticated, service_role;
 grant execute on function public.get_accounting_summary(date, date) to authenticated, service_role;
 grant execute on function public.get_category_monthly_usage(integer, integer) to authenticated, service_role;
+grant execute on function public.reset_all_transactions() to authenticated, service_role;
+grant execute on function public.reset_user_transactions() to authenticated, service_role;
