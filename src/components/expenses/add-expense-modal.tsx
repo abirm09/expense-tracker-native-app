@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { getLocalDateString } from '@/lib/date-utils';
 import { useGetCategoriesQuery } from '@/store/api/categories-api';
 import { useAddExpenseMutation } from '@/store/api/expenses-api';
 
@@ -71,7 +72,7 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
         title: title.trim(),
         amount: -Math.abs(numericAmount),
         category_id: activeCategoryId,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         notes: notes.trim() || null,
         currency: 'BDT',
       }).unwrap();

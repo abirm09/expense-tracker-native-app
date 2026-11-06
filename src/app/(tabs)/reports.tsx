@@ -57,7 +57,7 @@ export default function ReportsScreen() {
       <ScrollView
         contentContainerClassName="p-5 pt-3 pb-16 gap-5 max-w-xl mx-auto w-full"
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}>
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={() => void refetch()} />}>
         {/* Manage Categories Action (Scrollable) */}
         <Button
           variant="outline"
@@ -101,7 +101,9 @@ export default function ReportsScreen() {
                     variant={netSavings >= 0 ? 'default' : 'destructive'}
                     className="px-2.5 py-0.5">
                     <Text className="text-[11px] font-bold">
-                      {savingsRate.toFixed(0)}% Saved
+                      {savingsRate < 0
+                        ? `${Math.abs(savingsRate).toFixed(0)}% Over`
+                        : `${savingsRate.toFixed(0)}% Saved`}
                     </Text>
                   </Badge>
                 </View>

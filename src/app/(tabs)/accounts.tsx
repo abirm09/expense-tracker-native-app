@@ -441,6 +441,7 @@ export default function AccountsScreen() {
                             <Text variant="muted" className="text-xs">
                               {item.date} • {accountName}
                               {categoryName ? ` • ${categoryName}` : ''}
+                              {item.contacts ? ` • User: ${item.contacts.name || item.contacts.phone}` : ''}
                             </Text>
                           </View>
                           {item.notes ? (

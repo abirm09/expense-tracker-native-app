@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
+import { getLocalDateString } from '@/lib/date-utils';
 import { formatBDT } from '@/lib/format-currency';
 import {
   useGetAccountsQuery,
@@ -99,7 +100,7 @@ function AccountTransferModalInner({
         to_account_id: toAccountId,
         amount: numAmount,
         notes: notes.trim() || null,
-        transfer_date: new Date().toISOString().split('T')[0],
+        transfer_date: getLocalDateString(),
       }).unwrap();
 
       setAmount('');

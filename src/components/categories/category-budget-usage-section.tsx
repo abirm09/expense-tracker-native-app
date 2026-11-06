@@ -44,7 +44,7 @@ export function CategoryBudgetUsageSection({
   }, [categoriesWithLimits]);
 
   const overallPercentage =
-    totalBudgeted > 0 ? Math.min(100, (totalSpent / totalBudgeted) * 100) : 0;
+    totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
 
   return (
     <Card className="border-border shadow-sm">

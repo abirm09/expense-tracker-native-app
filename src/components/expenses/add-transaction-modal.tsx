@@ -19,6 +19,7 @@ import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { useAppTheme } from '@/context/theme-context';
+import { getLocalDateString, isValidDateString } from '@/lib/date-utils';
 import { formatBDT } from '@/lib/format-currency';
 import {
   useGetAccountsQuery,
@@ -54,12 +55,12 @@ function AddTransactionModalContent({
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
   const [selectedFromAccountId, setSelectedFromAccountId] = React.useState<string | null>(null);
   const [selectedToAccountId, setSelectedToAccountId] = React.useState<string | null>(null);
-  const [date, setDate] = React.useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = React.useState(() => getLocalDateString());
   const [notes, setNotes] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [showCategoryForm, setShowCategoryForm] = React.useState(false);
   const [showAccountForm, setShowAccountForm] = React.useState(false);
-  const scrollViewRef = React.useRef<ScrollView>(null);
+  const scrollViewRef = React.useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const { data: categories = [], isLoading: isLoadingCategories } = useGetCategoriesQuery({
     type: transactionType === 'income' ? 'income' : 'expense',
@@ -105,7 +106,7 @@ function AddTransactionModalContent({
     setSelectedAccountId(null);
     setSelectedFromAccountId(null);
     setSelectedToAccountId(null);
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getLocalDateString());
     setNotes('');
     setError(null);
   };
@@ -124,6 +125,11 @@ function AddTransactionModalContent({
     const numericAmount = parseFloat(cleanAmount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       setError('Please enter a valid amount greater than 0');
+      return;
+    }
+
+    if (date && !isValidDateString(date)) {
+      setError('Please enter the date as YYYY-MM-DD');
       return;
     }
 
@@ -148,7 +154,7 @@ function AddTransactionModalContent({
           to_account_id: toAccountId,
           amount: Math.abs(numericAmount),
           notes: notes.trim() || (title.trim() ? title.trim() : null),
-          transfer_date: date || new Date().toISOString().split('T')[0],
+          transfer_date: date || getLocalDateString(),
         }).unwrap();
 
         handleClose();
@@ -164,6 +170,16 @@ function AddTransactionModalContent({
       return;
     }
 
+    if (!activeAccountId) {
+      setError('Please create and select an account for this transaction');
+      return;
+    }
+
+    if (!activeCategoryId) {
+      setError('Please select a category for this transaction');
+      return;
+    }
+
     setError(null);
     try {
       await addExpense({
@@ -173,7 +189,7 @@ function AddTransactionModalContent({
         entry_type: transactionType === 'income' ? 'credit' : 'debit',
         category_id: activeCategoryId,
         account_id: activeAccountId,
-        date: date || new Date().toISOString().split('T')[0],
+        date: date || getLocalDateString(),
         notes: notes.trim() || null,
         currency: 'BDT',
       }).unwrap();

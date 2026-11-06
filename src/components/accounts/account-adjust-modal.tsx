@@ -18,6 +18,7 @@ import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { useAppTheme } from '@/context/theme-context';
+import { getLocalDateString } from '@/lib/date-utils';
 import { formatBDT } from '@/lib/format-currency';
 import {
   useAdjustAccountBalanceMutation,
@@ -76,7 +77,7 @@ function AccountAdjustModalInner({
         direction,
         title: title.trim() || 'Balance Adjustment',
         notes: notes.trim() || null,
-        adjustment_date: new Date().toISOString().split('T')[0],
+        adjustment_date: getLocalDateString(),
       }).unwrap();
 
       onClose();

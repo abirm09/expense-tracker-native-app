@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase';
+import { fetchAllPages } from '@/lib/fetch-all';
+import { getLocalDateString } from '@/lib/date-utils';
 import { apiSlice } from './api-slice';
 import { Account, AdjustmentRequest, Database, ExpenseWithCategory, TransferRequest } from '@/types/database.types';
 
@@ -38,6 +40,7 @@ export const accountsApi = apiSlice.injectEndpoints({
           const { data, error } = await supabase
             .from('accounts')
             .select('*')
+            .eq('is_archived', false)
             .order('is_default', { ascending: false })
             .order('name', { ascending: true });
 
@@ -218,8 +221,23 @@ export const accountsApi = apiSlice.injectEndpoints({
       queryFn: async ({ from_account_id, to_account_id, amount, notes, transfer_date }) => {
         try {
           const absAmount = Math.abs(amount);
-          const tDate = transfer_date || new Date().toISOString().split('T')[0];
+          const tDate = transfer_date || getLocalDateString();
           const cleanNotes = notes?.trim() || null;
+
+          if (!Number.isFinite(absAmount) || absAmount <= 0) {
+            return {
+              error: { status: 'CUSTOM_ERROR', error: 'Transfer amount must be greater than zero' },
+            };
+          }
+
+          if (from_account_id === to_account_id) {
+            return {
+              error: {
+                status: 'CUSTOM_ERROR',
+                error: 'Source and destination accounts must be different',
+              },
+            };
+          }
 
           // Try RPC first
           const { data, error } = await supabase.rpc('transfer_between_accounts', {
@@ -329,13 +347,20 @@ export const accountsApi = apiSlice.injectEndpoints({
     >({
       queryFn: async ({ account_id, amount, direction, title, notes, adjustment_date }) => {
         try {
+          const absAmount = Math.abs(Number(amount));
+          if (!Number.isFinite(absAmount) || absAmount <= 0) {
+            return {
+              error: { status: 'CUSTOM_ERROR', error: 'Adjustment amount must be greater than zero' },
+            };
+          }
+
           const { data, error } = await supabase.rpc('adjust_account_balance', {
             target_account_id: account_id,
-            amount: Math.abs(amount),
+            amount: absAmount,
             direction,
             title: title?.trim() || 'Balance Adjustment',
             notes: notes?.trim() || null,
-            adjustment_date: adjustment_date || new Date().toISOString().split('T')[0],
+            adjustment_date: adjustment_date || getLocalDateString(),
           });
 
           if (error) {
@@ -359,70 +384,95 @@ export const accountsApi = apiSlice.injectEndpoints({
     getCashbookEntries: builder.query<ExpenseWithCategory[], GetCashbookParams | void>({
       queryFn: async (params) => {
         try {
-          let query = supabase
-            .from('expenses')
-            .select(`
-              *,
-              categories (*),
-              accounts:account_id (*),
-              to_accounts:to_account_id (*)
-            `)
-            .order('date', { ascending: false })
-            .order('created_at', { ascending: false });
-
-          if (params?.account_id && params.account_id !== 'all') {
-            query = query.eq('account_id', params.account_id);
-          }
-
-          if (params?.entry_type && params.entry_type !== 'all') {
-            if (params.entry_type === 'credit') {
-              // Include income credits and transfer-in credits
-              query = query.in('entry_type', ['credit', 'transfer_in']);
-            } else if (params.entry_type === 'debit') {
-              // Include expense debits and transfer-out debits
-              query = query.in('entry_type', ['debit', 'transfer_out']);
-            } else {
-              query = query.eq('entry_type', params.entry_type);
+          const applyEntryTypeFilter = (query: any): any => {
+            if (params?.entry_type && params.entry_type !== 'all') {
+              if (params.entry_type === 'credit') {
+                // Include income credits and transfer-in credits
+                return query.in('entry_type', ['credit', 'transfer_in']);
+              }
+              if (params.entry_type === 'debit') {
+                // Include expense debits and transfer-out debits
+                return query.in('entry_type', ['debit', 'transfer_out']);
+              }
+              return query.eq('entry_type', params.entry_type);
             }
-          }
+            return query;
+          };
 
-          if (params?.search) {
-            query = query.ilike('title', `%${params.search}%`);
-          }
+          const buildCashbookQuery = () => {
+            let query = supabase
+              .from('expenses')
+              .select(`
+                *,
+                categories (*),
+                accounts:account_id (*),
+                to_accounts:to_account_id (*),
+                contacts:contact_id (*)
+              `)
+              .order('date', { ascending: false })
+              .order('created_at', { ascending: false })
+              .order('id');
 
-          if (params?.limit) {
-            query = query.limit(params.limit);
-          }
+            if (params?.account_id && params.account_id !== 'all') {
+              query = query.eq('account_id', params.account_id);
+            }
 
-          const { data, error } = await query;
+            query = applyEntryTypeFilter(query);
 
-          if (error) {
-            // Resilient fallback: If embedded relationships fail due to schema cache, fetch basic expenses with categories
-            let fallbackQuery = supabase
+            if (params?.search) {
+              query = query.ilike('title', `%${params.search}%`);
+            }
+
+            return query;
+          };
+
+          const buildFallbackCashbookQuery = () => {
+            let query = supabase
               .from('expenses')
               .select('*, categories (*)')
               .order('date', { ascending: false })
-              .order('created_at', { ascending: false });
+              .order('created_at', { ascending: false })
+              .order('id');
 
             if (params?.account_id && params.account_id !== 'all') {
-              fallbackQuery = fallbackQuery.eq('account_id', params.account_id);
+              query = query.eq('account_id', params.account_id);
             }
+            query = applyEntryTypeFilter(query);
             if (params?.search) {
-              fallbackQuery = fallbackQuery.ilike('title', `%${params.search}%`);
+              query = query.ilike('title', `%${params.search}%`);
             }
+
+            return query;
+          };
+
+          const runQuery = async (
+            build: () => any
+          ): Promise<{ data: unknown[] | null; error: string | null }> => {
             if (params?.limit) {
-              fallbackQuery = fallbackQuery.limit(params.limit);
+              const res = await build().limit(params.limit);
+              return { data: res.data, error: res.error?.message ?? null };
             }
+            const res = await fetchAllPages((from, to) => build().range(from, to));
+            return { data: res.data, error: res.error };
+          };
 
-            const fallbackRes = await fallbackQuery;
-            if (!fallbackRes.error && fallbackRes.data) {
-              return { data: (fallbackRes.data as unknown as ExpenseWithCategory[]) || [] };
-            }
-
-            return { error: { status: 'CUSTOM_ERROR', error: error.message } };
+          const primary = await runQuery(buildCashbookQuery);
+          if (!primary.error && primary.data) {
+            return { data: primary.data as unknown as ExpenseWithCategory[] };
           }
 
-          return { data: (data as unknown as ExpenseWithCategory[]) || [] };
+          // Resilient fallback: If embedded relationships fail due to schema cache, fetch basic expenses with categories
+          const fallback = await runQuery(buildFallbackCashbookQuery);
+          if (!fallback.error && fallback.data) {
+            return { data: fallback.data as unknown as ExpenseWithCategory[] };
+          }
+
+          return {
+            error: {
+              status: 'CUSTOM_ERROR',
+              error: primary.error ?? 'Failed to fetch cashbook entries',
+            },
+          };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Failed to fetch cashbook entries';
           return { error: { status: 'CUSTOM_ERROR', error: message } };

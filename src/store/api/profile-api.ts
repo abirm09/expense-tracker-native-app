@@ -42,6 +42,7 @@ export const profileApi = apiSlice.injectEndpoints({
                 email: user.email ?? null,
                 full_name: fallbackName,
                 avatar_url: null,
+                currency: 'BDT',
                 has_pin: false,
                 pin_hash: null,
                 pin_enabled: false,
