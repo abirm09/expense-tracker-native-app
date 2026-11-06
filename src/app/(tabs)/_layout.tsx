@@ -63,7 +63,20 @@ export default function TabLayout() {
           }}
         />
 
-        {/* Hidden from bottom tabs, navigated via Sidebar */}
+        <Tabs.Screen
+          name="debts"
+          options={{
+            title: 'Receivable & Payable',
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="debt-user"
+          options={{
+            title: 'User Ledger',
+            href: null,
+          }}
+        />
         <Tabs.Screen
           name="expenses"
           options={{

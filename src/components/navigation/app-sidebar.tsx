@@ -13,6 +13,7 @@ import {
   Sliders,
   Sun,
   User,
+  Users,
   Wallet,
   X,
 } from 'lucide-react-native';
@@ -58,6 +59,15 @@ const NAV_ITEMS: NavItem[] = [
     subtitle: 'Cash, bank & transfers',
     route: '/(tabs)/accounts',
     icon: Wallet,
+  },
+  {
+    id: 'debts',
+    label: 'Receivable & Payable',
+    subtitle: 'Lend, borrow & user ledger',
+    route: '/(tabs)/debts',
+    icon: Users,
+    badge: 'Ledger',
+    badgeColor: '#8b5cf6',
   },
   {
     id: 'expenses',
@@ -158,7 +168,9 @@ export function AppSidebar() {
         transparent
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => dispatch(closeSidebar())}>
+        onRequestClose={() => {
+          dispatch(closeSidebar());
+        }}>
         <View className="flex-1 flex-row">
           {/* Sidebar Drawer Panel */}
           <SafeAreaView

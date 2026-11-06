@@ -36,6 +36,9 @@ export default function IncomeScreen() {
   // Filter incomes
   const filteredIncomes = React.useMemo(() => {
     return allTransactions.filter((item) => {
+      // Balance reconciliation adjustments are not real income.
+      if (item.entry_type === 'adjustment') return false;
+
       const isIncome = item.type === 'income' || (!item.type && item.amount > 0);
       if (!isIncome) return false;
 
@@ -99,7 +102,7 @@ export default function IncomeScreen() {
         contentContainerClassName="p-5 pt-3 pb-16 gap-4"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+          <RefreshControl refreshing={isFetching} onRefresh={() => void refetch()} />
         }>
         {/* Action Row */}
         <View className="flex-row items-center gap-2.5">
@@ -251,6 +254,7 @@ export default function IncomeScreen() {
                         <Text variant="muted" className="text-xs">
                           {item.date} • {categoryName}
                           {item.accounts?.name ? ` • ${item.accounts.name}` : ''}
+                          {item.contacts ? ` • User: ${item.contacts.name || item.contacts.phone}` : ''}
                         </Text>
                       </View>
                       {item.notes ? (

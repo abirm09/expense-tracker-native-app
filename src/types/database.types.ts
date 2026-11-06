@@ -15,6 +15,7 @@ export interface Database {
           email: string | null;
           full_name: string | null;
           avatar_url: string | null;
+          currency: string;
           has_pin: boolean;
           pin_hash: string | null;
           pin_enabled: boolean;
@@ -26,6 +27,7 @@ export interface Database {
           email?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
+          currency?: string;
           has_pin?: boolean;
           pin_hash?: string | null;
           pin_enabled?: boolean;
@@ -37,6 +39,7 @@ export interface Database {
           email?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
+          currency?: string;
           has_pin?: boolean;
           pin_hash?: string | null;
           pin_enabled?: boolean;
@@ -91,6 +94,7 @@ export interface Database {
           opening_balance: number;
           current_balance: number;
           is_default: boolean;
+          is_archived: boolean;
           notes: string | null;
           color: string | null;
           created_at: string;
@@ -105,6 +109,7 @@ export interface Database {
           opening_balance?: number;
           current_balance?: number;
           is_default?: boolean;
+          is_archived?: boolean;
           notes?: string | null;
           color?: string | null;
           created_at?: string;
@@ -119,8 +124,48 @@ export interface Database {
           opening_balance?: number;
           current_balance?: number;
           is_default?: boolean;
+          is_archived?: boolean;
           notes?: string | null;
           color?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      contacts: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string | null;
+          phone: string;
+          email: string | null;
+          whatsapp: string | null;
+          notes: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string;
+          name?: string | null;
+          phone: string;
+          email?: string | null;
+          whatsapp?: string | null;
+          notes?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string | null;
+          phone?: string;
+          email?: string | null;
+          whatsapp?: string | null;
+          notes?: string | null;
+          avatar_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -130,6 +175,9 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
+          contact_id: string | null;
+          debt_type: 'receivable' | 'payable' | 'receivable_payment' | 'payable_payment' | null;
+          due_date: string | null;
           category_id: string | null;
           account_id: string | null;
           to_account_id: string | null;
@@ -147,6 +195,9 @@ export interface Database {
         Insert: {
           id?: string;
           user_id?: string;
+          contact_id?: string | null;
+          debt_type?: 'receivable' | 'payable' | 'receivable_payment' | 'payable_payment' | null;
+          due_date?: string | null;
           category_id?: string | null;
           account_id?: string | null;
           to_account_id?: string | null;
@@ -164,6 +215,9 @@ export interface Database {
         Update: {
           id?: string;
           user_id?: string;
+          contact_id?: string | null;
+          debt_type?: 'receivable' | 'payable' | 'receivable_payment' | 'payable_payment' | null;
+          due_date?: string | null;
           category_id?: string | null;
           account_id?: string | null;
           to_account_id?: string | null;
@@ -285,6 +339,23 @@ export interface Database {
         };
         Returns: void;
       };
+      record_debt_transaction: {
+        Args: {
+          p_contact_id: string;
+          p_account_id: string;
+          p_amount: number;
+          p_debt_type: 'receivable' | 'payable' | 'receivable_payment' | 'payable_payment';
+          p_title?: string | null;
+          p_notes?: string | null;
+          p_date?: string | null;
+          p_due_date?: string | null;
+        };
+        Returns: {
+          success: boolean;
+          id: string;
+          error?: string;
+        };
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -301,14 +372,48 @@ export type Category = Database['public']['Tables']['categories']['Row'];
 export type Budget = Database['public']['Tables']['budgets']['Row'];
 export type Account = Database['public']['Tables']['accounts']['Row'];
 export type AccountType = Account['type'];
+export type Contact = Database['public']['Tables']['contacts']['Row'];
+export type DebtType = 'receivable' | 'payable' | 'receivable_payment' | 'payable_payment';
 
 export type ExpenseWithCategory = Expense & {
   categories: Category | null;
   accounts?: Account | null;
   to_accounts?: Account | null;
+  contacts?: Contact | null;
 };
 
 export type Transaction = ExpenseWithCategory;
+
+export interface ContactWithLedger extends Contact {
+  total_receivable: number; // Lent to them
+  total_receivable_collected: number; // They paid back
+  outstanding_receivable: number; // Remaining they owe
+  total_payable: number; // Borrowed from them
+  total_payable_paid: number; // Repaid to them
+  outstanding_payable: number; // Remaining I owe
+  net_balance: number; // > 0: they owe me, < 0: I owe them, 0: settled
+  last_transaction_date?: string | null;
+  transaction_count: number;
+}
+
+export interface DebtSummary {
+  total_receivable: number; // total amount others owe me
+  total_payable: number; // total amount I owe others
+  net_balance: number; // total_receivable - total_payable
+  contact_count: number;
+  active_debt_count: number;
+}
+
+export interface RecordDebtRequest {
+  contact_id: string;
+  account_id: string;
+  amount: number;
+  debt_type: DebtType;
+  title?: string | null;
+  notes?: string | null;
+  date?: string;
+  due_date?: string | null;
+}
 
 export interface CategoryMonthlyUsage {
   category_id: string;
@@ -348,5 +453,3 @@ export interface AdjustmentRequest {
   notes?: string | null;
   adjustment_date?: string;
 }
-
-

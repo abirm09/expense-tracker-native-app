@@ -36,6 +36,9 @@ export default function ExpensesScreen() {
   // Filter expenses by search query and category
   const filteredExpenses = React.useMemo(() => {
     return allExpenses.filter((item) => {
+      // Balance reconciliation adjustments are not real spending.
+      if (item.entry_type === 'adjustment') return false;
+
       // Must be an expense
       const isExpense = item.type === 'expense' || (!item.type && item.amount < 0);
       if (!isExpense) return false;
@@ -100,7 +103,7 @@ export default function ExpensesScreen() {
         contentContainerClassName="p-5 pt-3 pb-16 gap-4"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+          <RefreshControl refreshing={isFetching} onRefresh={() => void refetch()} />
         }>
         {/* Action Row */}
         <View className="flex-row items-center gap-2.5">
@@ -258,6 +261,7 @@ export default function ExpensesScreen() {
                         <Text variant="muted" className="text-xs">
                           {item.date} • {categoryName}
                           {item.accounts?.name ? ` • ${item.accounts.name}` : ''}
+                          {item.contacts ? ` • User: ${item.contacts.name || item.contacts.phone}` : ''}
                         </Text>
                       </View>
                       {item.notes ? (

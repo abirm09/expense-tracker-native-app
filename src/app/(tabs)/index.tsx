@@ -10,6 +10,7 @@ import {
   Tag,
   TrendingUp,
   User,
+  Users,
   Wallet,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -40,6 +41,7 @@ import { Text } from '@/components/ui/text';
 import { useAuth } from '@/context/auth-context';
 import { formatBDT } from '@/lib/format-currency';
 import { useGetAccountsQuery } from '@/store/api/accounts-api';
+import { useGetDebtSummaryQuery } from '@/store/api/debts-api';
 import { useGetExpensesQuery, useGetExpenseStatsQuery } from '@/store/api/expenses-api';
 
 const SAMPLE_TRANSACTIONS = [
@@ -100,21 +102,29 @@ export default function OverviewScreen() {
     refetch: refetchAccounts,
   } = useGetAccountsQuery();
 
+  const {
+    data: debtSummary,
+    refetch: refetchDebts,
+  } = useGetDebtSummaryQuery();
+
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
   const totalAccountBalance = React.useMemo(() => {
     return accounts.reduce((sum, acc) => sum + Number(acc.current_balance || 0), 0);
   }, [accounts]);
 
-  const hasRealData = transactions.length > 0;
+  const hasRealActivity = transactions.length > 0;
+  // Accounts alone are real data even before the first transaction (e.g. a user
+  // who set an opening balance). Never show sample money when real accounts exist.
+  const hasRealData = accounts.length > 0 || hasRealActivity;
   const totalSpent = stats?.totalSpent ?? 0;
   const totalIncome = stats?.totalIncome ?? 0;
   // If accounts exist, use total liquid accounts balance so internal transfers never cut off net balance
   const netBalance = accounts.length > 0 ? totalAccountBalance : (stats?.netSavings ?? 0);
 
   const handleRefresh = React.useCallback(async () => {
-    await Promise.all([refetchTransactions(), refetchStats(), refetchAccounts()]);
-  }, [refetchTransactions, refetchStats, refetchAccounts]);
+    await Promise.all([refetchTransactions(), refetchStats(), refetchAccounts(), refetchDebts()]);
+  }, [refetchTransactions, refetchStats, refetchAccounts, refetchDebts]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
@@ -245,6 +255,46 @@ export default function OverviewScreen() {
         {/* Accounting Ledger Summary Card (Debits vs Credits) */}
         <AccountingLedgerCard />
 
+        {/* Receivable & Payable Summary Card */}
+        <Pressable
+          onPress={() => router.push('/(tabs)/debts' as any)}
+          className="p-4 rounded-2xl bg-card border border-border shadow-2xs active:scale-[0.99] transition-all">
+          <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-row items-center gap-2">
+              <View className="h-8 w-8 rounded-xl bg-purple-500/10 items-center justify-center">
+                <Icon as={Users} size={16} className="text-purple-600 dark:text-purple-400" />
+              </View>
+              <View>
+                <Text className="text-xs font-bold text-foreground">Receivable & Payable</Text>
+                <Text className="text-[10px] text-muted-foreground">Lend, borrow & user ledger</Text>
+              </View>
+            </View>
+            <View className="flex-row items-center gap-1">
+              <Text className="text-xs font-semibold text-primary">Open</Text>
+              <Icon as={ArrowUpRight} size={14} className="text-primary" />
+            </View>
+          </View>
+
+          <View className="flex-row gap-2 mt-1">
+            <View className="flex-1 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+              <Text className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                Receivable (To Get)
+              </Text>
+              <Text className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
+                {formatBDT(debtSummary?.total_receivable ?? 0)}
+              </Text>
+            </View>
+            <View className="flex-1 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl">
+              <Text className="text-[10px] font-semibold text-rose-700 dark:text-rose-400">
+                Payable (To Pay)
+              </Text>
+              <Text className="text-sm font-extrabold text-rose-600 dark:text-rose-400">
+                {formatBDT(debtSummary?.total_payable ?? 0)}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+
         {/* Quick Action Buttons (Add Debit / Credit & Transfer) */}
         <View className="gap-2.5">
           <View className="flex-row gap-2.5">
@@ -358,7 +408,7 @@ export default function OverviewScreen() {
                 </Badge>
               )}
             </View>
-            {hasRealData && (
+            {hasRealActivity && (
               <Badge variant="outline" className="px-2 py-0.5">
                 <Text className="text-xs">{transactions.length} items</Text>
               </Badge>
@@ -372,7 +422,7 @@ export default function OverviewScreen() {
                 Loading transactions...
               </Text>
             </View>
-          ) : hasRealData ? (
+          ) : hasRealActivity ? (
             transactions.map((item) => {
               const titleLower = (item.title || '').toLowerCase();
               const isTransferIn =
@@ -448,7 +498,7 @@ export default function OverviewScreen() {
                 </Card>
               );
             })
-          ) : (
+          ) : !hasRealData ? (
             SAMPLE_TRANSACTIONS.map((item) => (
               <Card key={item.id} className="py-3.5">
                 <CardContent className="flex-row items-center justify-between">
@@ -476,6 +526,14 @@ export default function OverviewScreen() {
                 </CardContent>
               </Card>
             ))
+          ) : (
+            <View className="py-10 px-6 items-center justify-center bg-card rounded-2xl border border-dashed border-border gap-2">
+              <Icon as={Tag} size={24} className="text-muted-foreground" />
+              <Text className="text-sm font-semibold text-foreground">No transactions yet</Text>
+              <Text variant="muted" className="text-xs text-center">
+                Add your first expense, income, or transfer to see it here.
+              </Text>
+            </View>
           )}
         </View>
 

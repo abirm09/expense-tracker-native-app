@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { fetchAllPages } from '@/lib/fetch-all';
 import { apiSlice } from '@/store/api/api-slice';
 import { AccountingSummary, Database, Expense, ExpenseWithCategory } from '@/types/database.types';
 
@@ -37,92 +38,121 @@ export const expensesApi = apiSlice.injectEndpoints({
     getExpenses: builder.query<ExpenseWithCategory[], ExpenseFilterParams | void>({
       queryFn: async (params) => {
         try {
-          let query = supabase
-            .from('expenses')
-            .select(`
-              id,
-              user_id,
-              category_id,
-              account_id,
-              to_account_id,
-              transfer_group_id,
-              title,
-              amount,
-              type,
-              entry_type,
-              currency,
-              date,
-              notes,
-              created_at,
-              updated_at,
-              categories (
+          const buildExpensesQuery = () => {
+            let query = supabase
+              .from('expenses')
+              .select(`
                 id,
                 user_id,
-                name,
-                icon,
-                color,
+                category_id,
+                account_id,
+                to_account_id,
+                contact_id,
+                debt_type,
+                due_date,
+                transfer_group_id,
+                title,
+                amount,
                 type,
-                is_default,
-                created_at
-              ),
-              accounts:account_id (
-                id,
-                name,
-                type,
-                color
-              ),
-              to_accounts:to_account_id (
-                id,
-                name,
-                type,
-                color
-              )
-            `)
-            .order('date', { ascending: false });
+                entry_type,
+                currency,
+                date,
+                notes,
+                created_at,
+                updated_at,
+                categories (
+                  id,
+                  user_id,
+                  name,
+                  icon,
+                  color,
+                  type,
+                  is_default,
+                  created_at
+                ),
+                accounts:account_id (
+                  id,
+                  name,
+                  type,
+                  color
+                ),
+                to_accounts:to_account_id (
+                  id,
+                  name,
+                  type,
+                  color
+                ),
+                contacts:contact_id (
+                  id,
+                  name,
+                  phone,
+                  email,
+                  whatsapp
+                )
+              `)
+              .order('date', { ascending: false })
+              .order('created_at', { ascending: false })
+              .order('id');
 
-          if (params?.type) {
-            query = query.eq('type', params.type);
-          }
-          if (params?.categoryId) {
-            query = query.eq('category_id', params.categoryId);
-          }
-          if (params?.accountId) {
-            query = query.eq('account_id', params.accountId);
-          }
-          if (params?.startDate) {
-            query = query.gte('date', params.startDate);
-          }
-          if (params?.endDate) {
-            query = query.lte('date', params.endDate);
-          }
-          if (params?.limit) {
-            query = query.limit(params.limit);
-          }
-
-          const { data, error } = await query;
-          if (error) {
-            // Resilient fallback: If embedded relationships fail due to schema cache, fetch basic expenses with categories
-            let fallbackQuery = supabase
-              .from('expenses')
-              .select('*, categories (*)')
-              .order('date', { ascending: false });
-
-            if (params?.type) fallbackQuery = fallbackQuery.eq('type', params.type);
-            if (params?.categoryId) fallbackQuery = fallbackQuery.eq('category_id', params.categoryId);
-            if (params?.accountId) fallbackQuery = fallbackQuery.eq('account_id', params.accountId);
-            if (params?.startDate) fallbackQuery = fallbackQuery.gte('date', params.startDate);
-            if (params?.endDate) fallbackQuery = fallbackQuery.lte('date', params.endDate);
-            if (params?.limit) fallbackQuery = fallbackQuery.limit(params.limit);
-
-            const fallbackRes = await fallbackQuery;
-            if (!fallbackRes.error && fallbackRes.data) {
-              return { data: (fallbackRes.data ?? []) as unknown as ExpenseWithCategory[] };
+            if (params?.type) {
+              query = query.eq('type', params.type);
+            }
+            if (params?.categoryId) {
+              query = query.eq('category_id', params.categoryId);
+            }
+            if (params?.accountId) {
+              query = query.eq('account_id', params.accountId);
+            }
+            if (params?.startDate) {
+              query = query.gte('date', params.startDate);
+            }
+            if (params?.endDate) {
+              query = query.lte('date', params.endDate);
             }
 
-            return { error: { message: error.message } };
+            return query;
+          };
+
+          const buildFallbackExpensesQuery = () => {
+            let query = supabase
+              .from('expenses')
+              .select('*, categories (*)')
+              .order('date', { ascending: false })
+              .order('created_at', { ascending: false })
+              .order('id');
+
+            if (params?.type) query = query.eq('type', params.type);
+            if (params?.categoryId) query = query.eq('category_id', params.categoryId);
+            if (params?.accountId) query = query.eq('account_id', params.accountId);
+            if (params?.startDate) query = query.gte('date', params.startDate);
+            if (params?.endDate) query = query.lte('date', params.endDate);
+
+            return query;
+          };
+
+          const runQuery = async (
+            build: () => any
+          ): Promise<{ data: unknown[] | null; error: string | null }> => {
+            if (params?.limit) {
+              const res = await build().limit(params.limit);
+              return { data: res.data, error: res.error?.message ?? null };
+            }
+            const res = await fetchAllPages((from, to) => build().range(from, to));
+            return { data: res.data, error: res.error };
+          };
+
+          const primary = await runQuery(buildExpensesQuery);
+          if (!primary.error && primary.data) {
+            return { data: primary.data as unknown as ExpenseWithCategory[] };
           }
 
-          return { data: (data ?? []) as unknown as ExpenseWithCategory[] };
+          // Resilient fallback: If embedded relationships fail due to schema cache, fetch basic expenses with categories
+          const fallback = await runQuery(buildFallbackExpensesQuery);
+          if (!fallback.error && fallback.data) {
+            return { data: fallback.data as unknown as ExpenseWithCategory[] };
+          }
+
+          return { error: { message: primary.error ?? 'Failed to fetch expenses' } };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Failed to fetch expenses';
           return { error: { message } };
@@ -148,6 +178,9 @@ export const expensesApi = apiSlice.injectEndpoints({
               category_id,
               account_id,
               to_account_id,
+              contact_id,
+              debt_type,
+              due_date,
               transfer_group_id,
               title,
               amount,
@@ -179,6 +212,13 @@ export const expensesApi = apiSlice.injectEndpoints({
                 name,
                 type,
                 color
+              ),
+              contacts:contact_id (
+                id,
+                name,
+                phone,
+                email,
+                whatsapp
               )
             `)
             .eq('id', id)
@@ -330,33 +370,42 @@ export const expensesApi = apiSlice.injectEndpoints({
     >({
       queryFn: async (params) => {
         try {
-          let query = supabase
-            .from('expenses')
-            .select(`
-              id,
-              amount,
-              type,
-              entry_type,
-              category_id,
-              date,
-              categories (
+          const buildStatsQuery = () => {
+            let query = supabase
+              .from('expenses')
+              .select(`
                 id,
-                name,
-                color,
-                type
-              )
-            `);
+                amount,
+                type,
+                entry_type,
+                category_id,
+                transfer_group_id,
+                title,
+                date,
+                categories (
+                  id,
+                  name,
+                  color,
+                  type
+                )
+              `)
+              .order('id');
 
-          if (params?.startDate) {
-            query = query.gte('date', params.startDate);
-          }
-          if (params?.endDate) {
-            query = query.lte('date', params.endDate);
-          }
+            if (params?.startDate) {
+              query = query.gte('date', params.startDate);
+            }
+            if (params?.endDate) {
+              query = query.lte('date', params.endDate);
+            }
 
-          const { data, error } = await query;
+            return query;
+          };
+
+          const { data, error } = await fetchAllPages((from, to) =>
+            buildStatsQuery().range(from, to)
+          );
           if (error) {
-            return { error: { message: error.message } };
+            return { error: { message: error } };
           }
 
           const records = (data ?? []) as unknown as {
@@ -365,12 +414,15 @@ export const expensesApi = apiSlice.injectEndpoints({
             type?: 'expense' | 'income' | 'transfer';
             entry_type?: 'debit' | 'credit' | 'transfer_out' | 'transfer_in' | 'adjustment';
             category_id: string | null;
+            transfer_group_id?: string | null;
+            title?: string | null;
             date: string;
             categories: { id?: string; name?: string; color?: string; type?: string } | null;
           }[];
 
           let totalSpent = 0;
           let totalIncome = 0;
+          let transactionCount = 0;
           const expenseCategoryMap = new Map<
             string,
             { name: string; color: string; total: number }
@@ -387,13 +439,19 @@ export const expensesApi = apiSlice.injectEndpoints({
               item.type === 'transfer' ||
               item.entry_type === 'transfer_out' ||
               item.entry_type === 'transfer_in' ||
-              Boolean((item as any).transfer_group_id) ||
-              (item as any).title?.toLowerCase().startsWith('transfer to') ||
-              (item as any).title?.toLowerCase().startsWith('transfer from');
+              Boolean(item.transfer_group_id) ||
+              item.title?.toLowerCase().startsWith('transfer to') ||
+              item.title?.toLowerCase().startsWith('transfer from');
 
-            if (isTransfer) {
+            // Balance reconciliation adjustments change an account balance but are
+            // not real income or expenses, so they must not distort savings stats.
+            const isAdjustment = item.entry_type === 'adjustment';
+
+            if (isTransfer || isAdjustment) {
               continue;
             }
+
+            transactionCount += 1;
 
             const rawAmount = Number(item.amount);
             const isIncome =
@@ -454,8 +512,7 @@ export const expensesApi = apiSlice.injectEndpoints({
           );
 
           const netSavings = totalIncome - totalSpent;
-          const savingsRate =
-            totalIncome > 0 ? Math.max(0, (netSavings / totalIncome) * 100) : 0;
+          const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
           return {
             data: {
@@ -463,7 +520,7 @@ export const expensesApi = apiSlice.injectEndpoints({
               totalIncome,
               netSavings,
               savingsRate,
-              transactionCount: records.length,
+              transactionCount,
               categoryBreakdown,
               incomeBreakdown,
             },
@@ -482,27 +539,43 @@ export const expensesApi = apiSlice.injectEndpoints({
     >({
       queryFn: async (params) => {
         try {
-          let query = supabase
-            .from('expenses')
-            .select('amount, type, entry_type, title, date');
+          // Prefer the database-side aggregate; unlike a table select it is not
+          // truncated by the API's default 1000-row response cap.
+          const rpcRes = await supabase.rpc('get_accounting_summary' as any, {
+            start_date: params?.startDate ?? null,
+            end_date: params?.endDate ?? null,
+          });
+          const rpcData = rpcRes.data as AccountingSummary | null;
+          if (
+            !rpcRes.error &&
+            rpcData &&
+            rpcData.total_credits !== undefined &&
+            rpcData.total_credits !== null
+          ) {
+            return { data: rpcData };
+          }
 
-          if (params?.startDate) {
-            query = query.gte('date', params.startDate);
-          }
-          if (params?.endDate) {
-            query = query.lte('date', params.endDate);
-          }
+          // Fallback: calculate client-side, paging through every row.
+          const buildSummaryQuery = () => {
+            let query = supabase
+              .from('expenses')
+              .select('amount, type, entry_type, title, date')
+              .order('id');
 
-          const { data, error } = await query;
-          if (error) {
-            // Fallback to RPC if direct table select fails
-            const rpcRes = await supabase.rpc('get_accounting_summary' as any, {
-              start_date: params?.startDate ?? null,
-              end_date: params?.endDate ?? null,
-            });
-            if (rpcRes.error) return { error: { message: rpcRes.error.message } };
-            return { data: rpcRes.data as AccountingSummary };
-          }
+            if (params?.startDate) {
+              query = query.gte('date', params.startDate);
+            }
+            if (params?.endDate) {
+              query = query.lte('date', params.endDate);
+            }
+
+            return query;
+          };
+
+          const { data, error } = await fetchAllPages((from, to) =>
+            buildSummaryQuery().range(from, to)
+          );
+          if (error) return { error: { message: error } };
 
           const records = data || [];
           let totalDebits = 0;
