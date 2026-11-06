@@ -103,7 +103,7 @@ export default function ProfileScreen() {
                 {user?.email}
               </Text>
               <Badge variant="outline" className="mt-2 self-start px-2 py-0.5">
-                <Text className="text-[10px] font-semibold text-primary">Single User Mode</Text>
+                <Text className="text-[10px] font-semibold text-primary">Private Account</Text>
               </Badge>
             </View>
           </CardContent>

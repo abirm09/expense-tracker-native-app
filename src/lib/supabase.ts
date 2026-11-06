@@ -48,6 +48,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: safeStorage,
     autoRefreshToken: !isServer,
     persistSession: !isServer,
+    // Tokens arrive through an explicit deep link on native, so supabase-js
+    // must not try to read them from the page URL itself.
     detectSessionInUrl: false,
+    // PKCE is the recommended flow for native apps: the confirmation link
+    // contains a short-lived code that the app exchanges for a session.
+    flowType: 'pkce',
   },
 });

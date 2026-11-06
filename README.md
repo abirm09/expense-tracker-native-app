@@ -1,6 +1,57 @@
-# Welcome to your Expo app 👋
+# Expense Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Multi-user Expo/React Native expense tracker backed by Supabase. Every signed-in
+account owns a fully isolated set of accounts, categories, transactions, budgets,
+contacts and its own 5-digit PIN.
+
+## Database setup
+
+Run these files in the Supabase SQL Editor in order:
+
+1. `supabase/schema.sql` — base tables, RLS and RPCs.
+2. `supabase/multiuser_migration.sql` — per-user defaults, tighter RLS and
+   multi-account safety (recommended for every existing project).
+
+The app's login screen supports **Sign In**, **Create Account**, and **Forgot password**. Each new account is seeded with its own default accounts and categories by the database trigger.
+
+## Authentication setup (required)
+
+In **Supabase Dashboard → Authentication**:
+
+1. **Providers → Email**: enable Email. Decide whether **Confirm email** is on.
+2. **URL Configuration**:
+   - **Site URL**: your production web URL, or `http://localhost:8081` for local web.
+     This is Supabase's **fallback** redirect. If it is left at the default
+     `http://localhost:3000`, every auth email whose redirect is not
+     allow-listed will point there instead of at the app.
+   - **Redirect URLs** — add all of these:
+     - `expensetracker://**` (production/development builds)
+     - `exp://**` (Expo Go)
+     - `http://localhost:8081/auth/callback` (web)
+
+The app builds its redirect from `Linking.createURL('auth/callback')` (see `src/lib/auth-redirect.ts`), so changing the `scheme` in `app.json` also requires updating the allow-list above. In development, the app logs the exact URL it sends to Supabase (`[auth] password reset redirectTo: ...`).
+
+**What the flow does**
+
+- Confirmation, recovery and magic-link emails open the app directly.
+- The deep link is exchanged for a session (`?code=` for PKCE, `?token_hash=`, or `#access_token=`), so a confirmed user lands inside the app already signed in.
+- Password reset opens a dedicated **Set a New Password** screen; no password is ever sent by email.
+- If a confirmation email never arrives, the sign-in screen offers **Resend confirmation email**.
+
+### Password reset troubleshooting
+
+- **The email links to `localhost:3000`** — the redirect sent by the app is not
+  in **Redirect URLs**, so Supabase replaced it with the **Site URL**. Add the
+  URL printed in the dev console (or the wildcards above) and update the Site URL.
+- **The link opens but the app shows no reset screen** — make sure the link was
+  opened on the **same device** that requested the reset. The PKCE code verifier
+  is stored on that device, so a link opened on another phone or computer cannot
+  complete the exchange.
+- **The email template was customized** — keep the button pointing at
+  `{{ .ConfirmationURL }}`. If it uses `{{ .SiteURL }}` instead, Supabase ignores
+  the app's redirect and always uses the Site URL.
+
+> Supabase's built-in email service is rate-limited to a few messages per hour. Configure **custom SMTP** before production use.
 
 ## Get started
 

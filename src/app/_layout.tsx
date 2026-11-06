@@ -1,8 +1,7 @@
 import '@/global.css';
 
 import { PortalHost } from '@rn-primitives/portal';
-import { Stack } from 'expo-router';
-import { ThemeProvider } from 'expo-router/react-navigation';
+import { Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
 import { Lock } from 'lucide-react-native';
@@ -11,6 +10,7 @@ import { Provider } from 'react-redux';
 
 import { AuthScreen } from '@/components/auth/auth-screen';
 import { PinScreen } from '@/components/auth/pin-screen';
+import { ResetPasswordScreen } from '@/components/auth/reset-password-screen';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { AuthProvider, useAuth } from '@/context/auth-context';
@@ -34,7 +34,15 @@ export {
 } from 'expo-router';
 
 function NavigationRoot() {
-  const { user, isLoading, isPinChecking, isLocked, unlockApp, signOut } = useAuth();
+  const {
+    user,
+    isLoading,
+    isPinChecking,
+    isLocked,
+    isPasswordRecovery,
+    unlockApp,
+    signOut,
+  } = useAuth();
 
   // 1. Initial restoration loading
   if (isLoading) {
@@ -45,12 +53,17 @@ function NavigationRoot() {
     );
   }
 
-  // 2. First Password: Not logged in -> Show Account Login & Register
+  // 2. Password recovery deep link -> choose a new password before entering.
+  if (isPasswordRecovery) {
+    return <ResetPasswordScreen />;
+  }
+
+  // 3. First Password: Not logged in -> Show Account Login & Register
   if (!user) {
     return <AuthScreen />;
   }
 
-  // 3. User is authenticated -> Render persistent Stack navigator, with PIN check & lock screens as security overlays
+  // 4. User is authenticated -> Render persistent Stack navigator, with PIN check & lock screens as security overlays
   return (
     <View className="flex-1">
       <Stack screenOptions={{ headerShown: false }}>
