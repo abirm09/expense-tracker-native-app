@@ -1,7 +1,26 @@
-import { cn } from '@/lib/utils';
 import { Platform, TextInput } from 'react-native';
 
-function Input({ className, ...props }: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
+import { useKeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view';
+import { cn } from '@/lib/utils';
+
+function Input({
+  className,
+  onFocus,
+  ...props
+}: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
+  const keyboardAware = useKeyboardAwareScrollView();
+
+  const handleFocus: React.ComponentProps<typeof TextInput>['onFocus'] = (event) => {
+    onFocus?.(event);
+
+    // When the keyboard is already open, a focus change does not fire another
+    // keyboard event. Bring the newly focused field above the keyboard here.
+    // The initial open is handled by KeyboardAwareScrollView.
+    if (keyboardAware) {
+      requestAnimationFrame(() => keyboardAware.scrollToFocusedInput());
+    }
+  };
+
   return (
     <TextInput
       className={cn(
@@ -22,6 +41,7 @@ function Input({ className, ...props }: React.ComponentProps<typeof TextInput> &
         className
       )}
       {...props}
+      onFocus={handleFocus}
     />
   );
 }

@@ -46,7 +46,7 @@ function AccountFormModalInner({
   const { height: windowHeight } = useWindowDimensions();
   const maxModalHeight = Math.round(windowHeight * 0.88);
   const isEditing = Boolean(accountToEdit);
-  const scrollViewRef = React.useRef<ScrollView>(null);
+  const scrollViewRef = React.useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const [name, setName] = React.useState(accountToEdit?.name || '');
   const [type, setType] = React.useState<AccountType>(

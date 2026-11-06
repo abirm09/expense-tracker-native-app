@@ -396,7 +396,7 @@ export function CategoryFormCard({
           </Button>
           <Button
             className="flex-1"
-            onPress={onSubmit}
+            onPress={() => void onSubmit()}
             disabled={isSubmittingApi}>
             {isSubmittingApi ? (
               <ActivityIndicator size="small" />
